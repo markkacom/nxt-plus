@@ -532,10 +532,9 @@ class NxtDbVersion extends DbVersion {
             case 197:
                 apply("ALTER TABLE currency DROP COLUMN IF EXISTS current_reserve_per_unit_nqt");
             case 198:
-                BlockchainProcessorImpl.getInstance().scheduleScan(0, false);
                 apply(null);
             case 199:
-                apply("CALL FTL_REINDEX()");
+                apply(null);
             case 200:
                 apply("CREATE TABLE IF NOT EXISTS public_key (db_id IDENTITY, account_id BIGINT NOT NULL, "
                         + "public_key BINARY(32), height INT NOT NULL, FOREIGN KEY (height) REFERENCES block (height) ON DELETE CASCADE)");
@@ -601,6 +600,54 @@ class NxtDbVersion extends DbVersion {
             case 230:
                 apply("CREATE INDEX IF NOT EXISTS trade_height_idx ON trade(height)");
             case 231:
+              apply("CREATE INDEX IF NOT EXISTS transaction_timestamp_desc_idx ON transaction (timestamp DESC)"); /* MofoQueries */
+            case 232:
+                apply("CREATE INDEX IF NOT EXISTS trade_timestamp_desc_idx ON trade (timestamp DESC)"); /* MofoQueries */
+            case 233:
+                apply("CREATE TABLE IF NOT EXISTS mofo_asset_chart (asset_id BIGINT NOT NULL, timestamp INT NOT NULL, "
+                    + "window TINYINT NOT NULL, openNQT BIGINT NOT NULL, highNQT BIGINT NOT NULL, lowNQT BIGINT NOT NULL, "
+                    + "closeNQT BIGINT NOT NULL, averageNQT BIGINT NOT NULL, volumeQNT BIGINT NOT NULL, height INT NOT NULL)");
+            case 234:
+                apply("CREATE INDEX IF NOT EXISTS mofo_asset_chart_asset_id_idx ON mofo_asset_chart (asset_id)");
+            case 235:
+                apply("CREATE INDEX IF NOT EXISTS mofo_asset_chart_window_idx ON mofo_asset_chart (window)");
+            case 236:
+                apply("CREATE INDEX IF NOT EXISTS mofo_asset_chart_timestamp_desc_idx ON mofo_asset_chart (timestamp DESC)");
+            case 237:
+                apply("CREATE INDEX IF NOT EXISTS mofo_asset_chart_height_idx ON mofo_asset_chart (height)");
+            case 238:
+                apply("CREATE TABLE IF NOT EXISTS mofo_post ( "
+                    + "type TINYINT NOT NULL, timestamp INT NOT NULL, sender_account_id BIGINT NOT NULL, "
+                    + "referenced_entity_id BIGINT NOT NULL, transaction_id BIGINT NOT NULL, "
+                    + "FOREIGN KEY (transaction_id) REFERENCES transaction (id) ON DELETE CASCADE)");
+            case 239:
+                apply("CREATE INDEX IF NOT EXISTS mofo_post_timestamp_desc_idx ON mofo_post (timestamp DESC)");
+            case 240:
+                apply("CREATE INDEX IF NOT EXISTS mofo_post_type_idx ON mofo_post (type)");
+            case 241:
+                apply("CREATE INDEX IF NOT EXISTS mofo_post_sender_account_id_idx ON mofo_post (sender_account_id)");
+            case 242:
+                apply("CREATE INDEX IF NOT EXISTS mofo_post_referenced_entity_id_idx ON mofo_post (referenced_entity_id)");
+            case 243:
+                apply("CREATE TABLE IF NOT EXISTS mofo_comment ( "
+                    + "timestamp INT NOT NULL, post_transaction_id BIGINT NOT NULL, transaction_id BIGINT NOT NULL, "
+                    + "sender_account_id BIGINT NOT NULL, "
+                    + "FOREIGN KEY (transaction_id) REFERENCES transaction (id) ON DELETE CASCADE)");
+            case 244:
+                apply("CREATE INDEX IF NOT EXISTS mofo_comment_timestamp_idx ON mofo_comment (timestamp)");
+            case 245:
+                apply("CREATE INDEX IF NOT EXISTS mofo_comment_sender_account_id_idx ON mofo_comment (sender_account_id)");
+            case 246:
+                apply("CREATE INDEX IF NOT EXISTS mofo_comment_post_transaction_id_idx ON mofo_comment (post_transaction_id)");
+            case 247:
+                /* XXX schedule a scan to fill the comment and post tables */
+                BlockchainProcessorImpl.getInstance().scheduleScan(0, false);
+                apply(null);
+            case 248:
+                apply("CALL FTL_CREATE_INDEX('PUBLIC', 'ACCOUNT', 'NAME,DESCRIPTION')");
+            case 252:
+                apply("CALL FTL_REINDEX()");
+            case 253:
                 return;
             default:
                 throw new RuntimeException("Blockchain database inconsistent with code, probably trying to run older code on newer database");

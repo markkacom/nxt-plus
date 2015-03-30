@@ -189,6 +189,8 @@ public final class Trade {
         }
     }
 
+    public static EntityDbTable<Trade> getTable() { return tradeTable; }
+    
     public long getBlockId() { return blockId; }
 
     public long getAskOrderId() { return askOrderId; }

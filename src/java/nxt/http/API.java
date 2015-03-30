@@ -40,7 +40,7 @@ public final class API {
 
     public static final int TESTNET_API_PORT = 6876;
 
-    private static final Set<String> allowedBotHosts;
+    public static final Set<String> allowedBotHosts;
     private static final List<NetworkAddress> allowedBotNets;
     static final String adminPassword = Nxt.getStringProperty("nxt.adminPassword", "", true);
     static final boolean disableAdminPassword;

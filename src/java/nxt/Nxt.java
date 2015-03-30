@@ -1,6 +1,7 @@
 package nxt;
 
 import nxt.http.API;
+import nxt.http.websocket.WebsocketServer;
 import nxt.peer.Peers;
 import nxt.user.Users;
 import nxt.util.Logger;
@@ -204,8 +205,11 @@ public final class Nxt {
                 Peers.init();
                 Generator.init();
                 API.init();
+                WebsocketServer.init();
                 Users.init();
                 DebugTrace.init();
+                MofoChart.init();
+                MofoMessaging.init();
                 int timeMultiplier = (Constants.isTestnet && Constants.isOffline) ? Math.max(Nxt.getIntProperty("nxt.timeMultiplier"), 1) : 1;
                 ThreadPool.start(timeMultiplier);
                 if (timeMultiplier > 1) {

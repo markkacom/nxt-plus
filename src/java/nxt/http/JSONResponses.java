@@ -124,6 +124,10 @@ public final class JSONResponses {
     public static final JSONStreamAware INCORRECT_MESSAGE_PATTERN_FLAGS = incorrect("messagePatternFlags");
     public static final JSONStreamAware INCORRECT_ADMIN_PASSWORD = incorrect("adminPassword", "(the specified password does not match nxt.adminPassword)");
     
+    public static final JSONStreamAware INCORRECT_FILTER = incorrect("filter");
+    public static final JSONStreamAware INCORRECT_JSON_ARGS = incorrect("jsonArgs");
+    public static final JSONStreamAware INCORRECT_ORDER_TYPE = incorrect("type", "(must be either bid or ask)");
+    
     public static final JSONStreamAware NOT_ENOUGH_FUNDS;
     static {
         JSONObject response = new JSONObject();

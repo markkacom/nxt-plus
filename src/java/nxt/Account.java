@@ -32,6 +32,10 @@ public final class Account {
         LEASE_SCHEDULED, LEASE_STARTED, LEASE_ENDED
     }
 
+    public static DbIterator<Account> searchAccounts(String query, int from, int to) {
+        return accountTable.search(query, DbClause.EMPTY_CLAUSE, from, to, " ORDER BY ft.score DESC" /*, account.height DESC "*/);
+    }
+
     public static class AccountAsset {
 
         private final long accountId;

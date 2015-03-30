@@ -302,4 +302,12 @@ public final class Generator implements Comparable<Generator> {
         }
     }
 
+    public static Generator getGenerator(long id) {
+        for (Generator generator : getAllGenerators()) {
+            if (generator.accountId == id) {
+                return generator;
+            }
+        }
+        return null;
+    }
 }

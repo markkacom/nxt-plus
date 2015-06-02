@@ -388,7 +388,7 @@ public final class MofoQueries {
                         buffer.get(message);
 
                         JSONObject post = new JSONObject();
-                        post.put("transaction", Convert.toUnsignedLong(transaction_id));
+                        post.put("transaction", Long.toUnsignedString(transaction_id));
                         post.put("confirmations", Nxt.getBlockchain().getHeight() - height);
                         post.put("height", height);
                         post.put("timestamp", timestamp);
@@ -489,7 +489,7 @@ public final class MofoQueries {
                         buffer.get(message);
   
                         JSONObject post = new JSONObject();
-                        post.put("transaction", Convert.toUnsignedLong(transaction_id));
+                        post.put("transaction", Long.toUnsignedString(transaction_id));
                         post.put("confirmations", Nxt.getBlockchain().getHeight() - height);
                         post.put("height", height);
                         post.put("timestamp", timestamp);
@@ -921,7 +921,7 @@ public final class MofoQueries {
                     int height = rs.getInt("creation_height");
                   
                     JSONObject order = new JSONObject();
-                    order.put("order", Convert.toUnsignedLong(rs.getLong("id")));
+                    order.put("order", Long.toUnsignedString(rs.getLong("id")));
                     order.put("priceNQT", String.valueOf(rs.getLong("price")));
                     order.put("quantityQNT", String.valueOf(rs.getLong("quantity")));
                     order.put("height", height);

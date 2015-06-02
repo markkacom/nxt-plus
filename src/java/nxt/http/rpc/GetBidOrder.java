@@ -32,7 +32,7 @@ public class GetBidOrder extends RPCCall {
         if (asset != null) {
             response.put("name", asset.getName());
             response.put("decimals", asset.getDecimals());
-            response.put("asset", Convert.toUnsignedLong(asset.getId()));
+            response.put("asset", Long.toUnsignedString(asset.getId()));
         }
         
         response.put("quantityQNT", String.valueOf(order.getQuantityQNT()));

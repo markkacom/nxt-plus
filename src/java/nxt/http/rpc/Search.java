@@ -5,6 +5,7 @@ import nxt.Alias;
 import nxt.Asset;
 import nxt.Currency;
 import nxt.DigitalGoodsStore;
+import nxt.Account.AccountInfo;
 import nxt.DigitalGoodsStore.Goods;
 import nxt.MofoQueries;
 import nxt.db.DbIterator;
@@ -55,7 +56,7 @@ public class Search extends RPCCall {
                         json.put("name", asset.getName());
                         json.put("decimals", asset.getDecimals());
                         json.put("description", asset.getDescription());
-                        json.put("asset", Convert.toUnsignedLong(asset.getId()));
+                        json.put("asset", Long.toUnsignedString(asset.getId()));
                         json.put("accountRS", Convert.rsAccount(asset.getAccountId()));
                       
                         results.add(json);
@@ -70,7 +71,7 @@ public class Search extends RPCCall {
                     json.put("name", asset.getName());
                     json.put("decimals", asset.getDecimals());
                     json.put("description", asset.getDescription());
-                    json.put("asset", Convert.toUnsignedLong(asset.getId()));
+                    json.put("asset", Long.toUnsignedString(asset.getId()));
                     json.put("accountRS", Convert.rsAccount(asset.getAccountId()));
                   
                     results.add(json);
@@ -86,31 +87,36 @@ public class Search extends RPCCall {
                     Account account = Account.getAccount(account_id);
                     if (account != null) {
                         JSONObject json = new JSONObject();
-                        json.put("name", account.getName());
+                        
                         json.put("balanceNQT", account.getBalanceNQT());
                         json.put("effectiveNXT", account.getEffectiveBalanceNXT());
-                        json.put("description", account.getDescription());
                         json.put("accountRS", Convert.rsAccount(account.getId()));
+                        
+                        AccountInfo accountInfo = account.getAccountInfo();
+                        if (accountInfo != null) {
+                            response.put("description", accountInfo.getDescription());
+                            json.put("name", accountInfo.getName());
+                        }                        
                       
                         results.add(json);                      
                     }
                 }
             } catch (Exception e) {}
           
-            try (DbIterator<Account> accounts = Account.searchAccounts(query, firstIndex, lastIndex)) {
-                while (accounts.hasNext()) {
-                    Account account = accounts.next();
-                    
-                    JSONObject json = new JSONObject();
-                    json.put("name", account.getName());
-                    json.put("balanceNQT", account.getBalanceNQT());
-                    json.put("effectiveNXT", account.getEffectiveBalanceNXT());
-                    json.put("description", account.getDescription());
-                    json.put("accountRS", Convert.rsAccount(account.getId()));
-                  
-                    results.add(json);
-                }
-            }
+//            try (DbIterator<Account> accounts = Account.searchAccounts(query, firstIndex, lastIndex)) {
+//                while (accounts.hasNext()) {
+//                    Account account = accounts.next();
+//                    
+//                    JSONObject json = new JSONObject();
+//                    json.put("name", account.getName());
+//                    json.put("balanceNQT", account.getBalanceNQT());
+//                    json.put("effectiveNXT", account.getEffectiveBalanceNXT());
+//                    json.put("description", account.getDescription());
+//                    json.put("accountRS", Convert.rsAccount(account.getId()));
+//                  
+//                    results.add(json);
+//                }
+//            }
         }
         else if ("currencies".equalsIgnoreCase(category)) {
             try (DbIterator<Currency> currencies = Currency.searchCurrencies(query, firstIndex, lastIndex)) {

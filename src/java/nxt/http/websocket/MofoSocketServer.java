@@ -136,7 +136,7 @@ public class MofoSocketServer {
         String[] parts = topic.split("-", 2);
         if (parts.length > 1) {
             if (parts[1].startsWith("NXT-")) {
-                parts[1] = Convert.toUnsignedLong(Crypto.rsDecode(parts[1].substring(4)));
+                parts[1] = Long.toUnsignedString(Crypto.rsDecode(parts[1].substring(4)));
             }
             return parts[0] + '-' + parts[1];
         }

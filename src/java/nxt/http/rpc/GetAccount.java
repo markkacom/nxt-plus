@@ -3,6 +3,7 @@ package nxt.http.rpc;
 import nxt.Account;
 import nxt.Generator;
 import nxt.Nxt;
+import nxt.Account.AccountInfo;
 import nxt.http.ParameterException;
 import nxt.http.websocket.JSONData;
 import nxt.http.websocket.RPCCall;
@@ -31,8 +32,11 @@ public class GetAccount extends RPCCall {
         if (account != null) {
             if (account.getPublicKey() != null) {
                 response.put("publicKey", Convert.toHexString(account.getPublicKey()));              
-            }          
-            response.put("description", account.getDescription());
+            }
+            AccountInfo accountInfo = account.getAccountInfo();
+            if (accountInfo != null) {
+                response.put("description", accountInfo.getDescription());
+            }
             
             if (account.getCurrentLeasingHeightFrom() != Integer.MAX_VALUE) {
                 response.put("leasingHeightFrom", account.getCurrentLeasingHeightFrom());

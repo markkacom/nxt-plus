@@ -1,6 +1,7 @@
 package nxt.http.rpc;
 
 import nxt.Account;
+import nxt.Account.AccountLease;
 import nxt.Generator;
 import nxt.Nxt;
 import nxt.Account.AccountInfo;
@@ -38,11 +39,13 @@ public class GetAccount extends RPCCall {
                 response.put("description", accountInfo.getDescription());
             }
             
-            if (account.getCurrentLeasingHeightFrom() != Integer.MAX_VALUE) {
-                response.put("leasingHeightFrom", account.getCurrentLeasingHeightFrom());
-                response.put("leasingHeightTo", account.getCurrentLeasingHeightTo());
+            AccountLease accountLease = account.getAccountLease();
+            
+            if (accountLease != null && accountLease.getCurrentLeasingHeightFrom() != Integer.MAX_VALUE) {
+                response.put("leasingHeightFrom", accountLease.getCurrentLeasingHeightFrom());
+                response.put("leasingHeightTo", accountLease.getCurrentLeasingHeightTo());
                 response.put("height", Nxt.getBlockchain().getHeight());
-                response.put("lesseeIdRS", Convert.rsAccount(account.getCurrentLesseeId()));
+                response.put("lesseeIdRS", Convert.rsAccount(accountLease.getCurrentLesseeId()));
             }
             
             if (includeForging) {

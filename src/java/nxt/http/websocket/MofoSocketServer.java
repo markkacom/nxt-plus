@@ -4,6 +4,7 @@ import static nxt.http.JSONResponses.ERROR_INCORRECT_REQUEST;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import nxt.Block;
+import nxt.Constants;
 import nxt.NxtException;
 import nxt.Trade;
 import nxt.Transaction;
@@ -69,6 +71,7 @@ public class MofoSocketServer {
     static final Map<MofoWebSocketAdapter, Set<String>> reverse_listeners = new HashMap<MofoWebSocketAdapter, Set<String>>();
     
     static final Map<String, RPCCall> rpcCalls = new HashMap<String, RPCCall>();
+    public static List<JSONArray> debugEvents = null;
 
     static JSONObject ERROR_NO_SUCH_METHOD;
     static JSONObject ERROR_SOCKET_IS_BUSY;
@@ -197,7 +200,7 @@ public class MofoSocketServer {
     /**
      * Available topics..
      * 
-     * # lockPushedNew
+     * # blockPushedNew
      * 
      *  Forwards event BLOCK_PUSHED for blocks less than 1 day old
      * 
@@ -266,58 +269,79 @@ public class MofoSocketServer {
      *  
      */
     static void notify(final String topic, final Object data) {
-        threadPool.submit(new Runnable() {
-  
-            @Override
-            public void run() {
-              
-                //Logger.logDebugMessage("MofoSocketServer notify " + topic);
-              
-                Set<MofoWebSocketAdapter> sockets = listeners.get(topic);
-                if (sockets != null && ! sockets.isEmpty()) {
-                    JSONArray array = new JSONArray();
-                    array.add("notify");
-                    array.add(topic);
-                    array.add(data);
-                    String response = array.toJSONString();
-                    for (MofoWebSocketAdapter socket : sockets) {
-                        socket.sendAsync(response);
+        if (debugEvents != null) {
+            JSONArray array = new JSONArray();
+            array.add("notify");
+            array.add(topic);
+            array.add(data);
+            debugEvents.add(array);
+        }      
+      
+        if (listeners.containsKey(topic)) {
+            threadPool.submit(new Runnable() {
+      
+                @Override
+                public void run() {
+                  
+                    //Logger.logDebugMessage("MofoSocketServer notify " + topic);
+                  
+                    Set<MofoWebSocketAdapter> sockets = listeners.get(topic);
+                    if (sockets != null && ! sockets.isEmpty()) {
+                        JSONArray array = new JSONArray();
+                        array.add("notify");
+                        array.add(topic);
+                        array.add(data);
+                        String response = array.toJSONString();
+                        for (MofoWebSocketAdapter socket : sockets) {
+                            socket.sendAsync(response);
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
+    }
+    
+    static boolean mustNotify(final String topic) {
+        return Constants.isTestnet || listeners.containsKey(topic);
+    }
+    
+    public static void notifyJSON(final String topic, JSONObject json) {
+        if ( ! mustNotify(topic)) {
+            return;
+        }
+        MofoSocketServer.notify(topic, json);
     }
     
     static void notifyTransactions(final String topic, final List<? extends Transaction> transactions, final boolean unconfirmed) {
-        if ( ! listeners.containsKey(topic)) {
+        if ( ! mustNotify(topic)) {
             return;
         }
         MofoSocketServer.notify(topic, JSONData.transactions(transactions, unconfirmed));
     }
     
     static void notifyTrades(final String topic, final List<? extends Trade> trades) {
-        if ( ! listeners.containsKey(topic)) {
+        if ( ! mustNotify(topic)) {
             return;
         }      
         MofoSocketServer.notify(topic, JSONData.trades(trades));
     }
     
     static void notifyBlock(final String topic, final Block block) {
-        if ( ! listeners.containsKey(topic)) {
+        if ( ! mustNotify(topic)) {
             return;
         }
         MofoSocketServer.notify(topic, JSONData.minimalBlock(block));
     }
     
     static void notifyBlockMinimal(final String topic, final Block block) {
-        if ( ! listeners.containsKey(topic)) {
+        if ( ! mustNotify(topic)) {
             return;
         }
         MofoSocketServer.notify(topic, JSONData.minimalBlock(block));
     }
     
     static void notifyPeerEvent(String topic, Peer peer) {
-        if ( ! listeners.containsKey(topic)) {
+        if ( ! mustNotify(topic)) {
             return;
         }
         MofoSocketServer.notify(topic, JSONData.peer(peer));      
@@ -385,6 +409,23 @@ public class MofoSocketServer {
         }
         catch (IOException e) {
             Logger.logErrorMessage("IOException - (out of memory)", e);
+        }
+    }
+    
+    public static void startCollectingEvents() {
+        if (Constants.isTestnet) {
+            if (debugEvents != null) {
+                debugEvents.clear();
+            }
+            else {
+                debugEvents = new ArrayList<JSONArray>();
+            }
+        }
+    }
+    
+    public static void stopCollectingEvents() {
+        if (Constants.isTestnet) {
+            debugEvents = null;
         }
     }
     

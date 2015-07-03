@@ -2,6 +2,7 @@ package nxt.http.rpc;
 
 import nxt.Account;
 import nxt.Nxt;
+import nxt.Account.AccountLease;
 import nxt.db.DbIterator;
 import nxt.http.ParameterException;
 import nxt.http.websocket.JSONData;
@@ -38,9 +39,14 @@ public class GetAccountLessors extends RPCCall {
                   Account lessor = lessors.next();
                   JSONObject lessorJSON = new JSONObject();
                   JSONData.putAccount(lessorJSON, "lessor", lessor.getId());
+                  
+                  AccountLease accountLease = lessor.getAccountLease();
+                  
                   lessorJSON.put("guaranteedBalanceNQT", String.valueOf(lessor.getGuaranteedBalanceNQT(1440, height)));
-                  lessorJSON.put("currentLeasingHeightFrom", lessor.getCurrentLeasingHeightFrom());
-                  lessorJSON.put("currentLeasingHeightTo", lessor.getCurrentLeasingHeightTo());
+                  if (accountLease != null) {
+                      lessorJSON.put("currentLeasingHeightFrom", accountLease.getCurrentLeasingHeightFrom());
+                      lessorJSON.put("currentLeasingHeightTo", accountLease.getCurrentLeasingHeightTo());
+                  }
                   lessorsJSON.add(lessorJSON);
               }
           }

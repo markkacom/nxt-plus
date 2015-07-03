@@ -31,3 +31,4 @@ deploy.sh
 /nxt.exe
 /nxtservice.exe
 nxt-client-*
+nxt_db*/

@@ -21,6 +21,7 @@ import nxt.Nxt;
 import nxt.NxtException;
 import nxt.util.JSON;
 import nxt.util.Logger;
+
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
 
@@ -28,6 +29,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
@@ -307,8 +309,16 @@ public final class APIServlet extends HttpServlet {
         map.put("setLogging", SetLogging.instance);
         map.put("shutdown", Shutdown.instance);
         map.put("trimDerivedTables", TrimDerivedTables.instance);
+        
+        registerFIMKAPI(map);
 
         apiRequestHandlers = Collections.unmodifiableMap(map);
+    }
+
+    static void registerFIMKAPI(Map<String,APIRequestHandler> map) {
+        map.put("getVirtualAskOrders", GetVirtualAskOrders.instance);
+        map.put("getVirtualBidOrders", GetVirtualBidOrders.instance);
+        map.put("getVirtualTrades", GetVirtualTrades.instance);
     }
 
     @Override

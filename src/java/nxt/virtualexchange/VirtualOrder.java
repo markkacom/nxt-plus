@@ -347,7 +347,11 @@ public abstract class VirtualOrder {
 
         private static List<VirtualAsk> getMergedAsks(long assetId, int firstIndex, int lastIndex, final long accountId) {
             List<VirtualAsk> sortedAsks = new ArrayList<VirtualAsk>();
-            sortedAsks.addAll(virtualAskMap.values());
+            for (VirtualAsk a : virtualAskMap.values()) {
+                if (a.getAssetId() == assetId) {
+                    sortedAsks.add(a);
+                }
+            }
             Collections.sort(sortedAsks, Collections.reverseOrder());
           
             List<VirtualAsk> result = new ArrayList<VirtualAsk>();
@@ -531,7 +535,11 @@ public abstract class VirtualOrder {
 
         private static List<VirtualBid> getMergedBids(long assetId, int firstIndex, int lastIndex, final long accountId) {
             List<VirtualBid> sortedBids = new ArrayList<VirtualBid>();
-            sortedBids.addAll(virtualBidMap.values());
+            for (VirtualBid b : virtualBidMap.values()) {
+                if (b.getAssetId() == assetId) {
+                  sortedBids.add(b);
+                }
+            }
             Collections.sort(sortedBids, Collections.reverseOrder());
           
             List<VirtualBid> result = new ArrayList<VirtualBid>();

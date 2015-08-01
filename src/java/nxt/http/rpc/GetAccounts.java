@@ -32,6 +32,7 @@ public class GetAccounts extends RPCCall {
     public JSONStreamAware call(JSONObject arguments) throws ParameterException {
      
         List<Long> account_ids = ParameterParser.getAccountIds(arguments);
+        boolean exludeForging = "true".equals(arguments.get("excludeForging"));
         
         JSONArray accounts_json = new JSONArray();
         
@@ -70,30 +71,32 @@ public class GetAccounts extends RPCCall {
               if (accountInfo != null) {
                   json.put("name", accountInfo.getName());
               }
-              json.put("numberOfBlocks", Nxt.getBlockchain().getBlockCount(account));
               
-              Block block = MofoQueries.getLastBlock(account.getId());
-              if (block != null) {
-                json.put("lastBlockHeight", block.getHeight());
-                json.put("lastBlockTimestamp", block.getTimestamp());
+              if (!exludeForging) {
+                  json.put("numberOfBlocks", Nxt.getBlockchain().getBlockCount(account));
+                  
+                  Block block = MofoQueries.getLastBlock(account.getId());
+                  if (block != null) {
+                    json.put("lastBlockHeight", block.getHeight());
+                    json.put("lastBlockTimestamp", block.getTimestamp());
+                  }
+                  else {
+                    json.put("lastBlockHeight", 0);
+                    json.put("lastBlockTimestamp", 0);
+                  }
+                  
+                  int time = Nxt.getBlockchain().getLastBlock().getTimestamp();
+                  RewardsStruct dayReward = MofoQueries.getBlockRewardsSince(account.getId(), time - SECONDS_24H);
+                  RewardsStruct weekReward = MofoQueries.getBlockRewardsSince(account.getId(), time - SECONDS_WEEK);
+                  RewardsStruct monthReward = MofoQueries.getBlockRewardsSince(account.getId(), time - SECONDS_MONTH);
+                  
+                  json.put("forgedBalanceTodayNQT", String.valueOf(dayReward.getTotalRewardsNQT()));        
+                  json.put("forgedBalanceWeekNQT", String.valueOf(weekReward.getTotalRewardsNQT()));
+                  json.put("forgedBalanceMonthNQT", String.valueOf(monthReward.getTotalRewardsNQT()));
+                  json.put("forgedBalanceTodayCount", dayReward.getCount());        
+                  json.put("forgedBalanceWeekCount", weekReward.getCount());
+                  json.put("forgedBalanceMonthCount", monthReward.getCount());
               }
-              else {
-                json.put("lastBlockHeight", 0);
-                json.put("lastBlockTimestamp", 0);
-              }
-              
-              int time = Nxt.getBlockchain().getLastBlock().getTimestamp();
-              RewardsStruct dayReward = MofoQueries.getBlockRewardsSince(account.getId(), time - SECONDS_24H);
-              RewardsStruct weekReward = MofoQueries.getBlockRewardsSince(account.getId(), time - SECONDS_WEEK);
-              RewardsStruct monthReward = MofoQueries.getBlockRewardsSince(account.getId(), time - SECONDS_MONTH);
-              
-              json.put("forgedBalanceTodayNQT", String.valueOf(dayReward.getTotalRewardsNQT()));        
-              json.put("forgedBalanceWeekNQT", String.valueOf(weekReward.getTotalRewardsNQT()));
-              json.put("forgedBalanceMonthNQT", String.valueOf(monthReward.getTotalRewardsNQT()));
-              json.put("forgedBalanceTodayCount", dayReward.getCount());        
-              json.put("forgedBalanceWeekCount", weekReward.getCount());
-              json.put("forgedBalanceMonthCount", monthReward.getCount());          
-          
           }         
           accounts_json.add(json);
         }

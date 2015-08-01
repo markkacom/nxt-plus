@@ -30,5 +30,5 @@ deploy.sh
 /nxt.pro
 /nxt.exe
 /nxtservice.exe
-
+*.zip
 nxt_db*/

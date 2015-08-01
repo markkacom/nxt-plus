@@ -164,6 +164,8 @@ public final class Constants {
 
     public static final int EC_BLOCK_DISTANCE_LIMIT = 60;
 
+    public static final String TRANSIENT_FULL_HASH = "3030303030303030303030303030303030303030303030303030303030303030";
+
     private Constants() {} // never
 
 }

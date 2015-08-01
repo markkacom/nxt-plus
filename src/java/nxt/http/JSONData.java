@@ -749,6 +749,9 @@ final class JSONData {
         String referencedTransactionFullHash = transaction.getReferencedTransactionFullHash();
         if (referencedTransactionFullHash != null) {
             json.put("referencedTransactionFullHash", referencedTransactionFullHash);
+            if (Constants.TRANSIENT_FULL_HASH.equals(transaction.getReferencedTransactionFullHash())) {
+                json.put("transient", true);
+            }
         }
         byte[] signature = Convert.emptyToNull(transaction.getSignature());
         if (signature != null) {

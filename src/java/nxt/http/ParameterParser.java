@@ -353,9 +353,9 @@ final class ParameterParser {
     static Account getAccount(HttpServletRequest req) throws ParameterException {
         return getAccount(req, true);
     }
-
-    static Account getAccount(HttpServletRequest req, boolean isMandatory) throws ParameterException {
-        long accountId = getAccountId(req, "account", isMandatory);
+    
+    static Account getAccount(HttpServletRequest req, String name, boolean isMandatory) throws ParameterException {
+        long accountId = getAccountId(req, name, isMandatory);
         if (accountId == 0 && !isMandatory) {
             return null;
         }
@@ -364,6 +364,10 @@ final class ParameterParser {
             throw new ParameterException(JSONResponses.unknownAccount(accountId));
         }
         return account;
+    }
+
+    static Account getAccount(HttpServletRequest req, boolean isMandatory) throws ParameterException {
+        return getAccount(req, "account", isMandatory);
     }
 
     static List<Account> getAccounts(HttpServletRequest req) throws ParameterException {

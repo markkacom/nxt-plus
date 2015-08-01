@@ -337,6 +337,8 @@ public final class APIServlet extends HttpServlet {
         map.put("getVirtualAskOrders", GetVirtualAskOrders.instance);
         map.put("getVirtualBidOrders", GetVirtualBidOrders.instance);
         map.put("getVirtualTrades", GetVirtualTrades.instance);
+        map.put("getChatList", GetChatList.instance);
+        map.put("getChatMessages", GetChatMessages.instance);        
     }
 
     @Override

@@ -16,6 +16,7 @@ import nxt.Attachment.ColoredCoinsBidOrderPlacement;
 import nxt.Attachment.ColoredCoinsAskOrderCancellation;
 import nxt.Attachment.ColoredCoinsBidOrderCancellation;
 import nxt.Block;
+import nxt.Constants;
 import nxt.Currency;
 import nxt.DigitalGoodsStore;
 import nxt.Nxt;
@@ -82,7 +83,11 @@ public class JSONData {
         json.put("amountNQT", transaction.getAmountNQT());
         json.put("feeNQT", transaction.getFeeNQT());
         json.put("deadline", transaction.getDeadline());
-        
+
+        if (Constants.TRANSIENT_FULL_HASH.equals(transaction.getReferencedTransactionFullHash())) {
+            json.put("transient", true);
+        }
+
         if (unconfirmed) {
           json.put("confirmations", -1);
           json.put("height", Nxt.getBlockchain().getHeight() + 1);

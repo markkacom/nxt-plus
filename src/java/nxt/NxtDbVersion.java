@@ -611,13 +611,13 @@ class NxtDbVersion extends DbVersion {
             case 247:
                 apply(null);
             case 248:
-                apply("CALL FTL_CREATE_INDEX('PUBLIC', 'ACCOUNT', 'NAME,DESCRIPTION')");
+                apply(null);
             case 249:
                 apply(null);
             case 250:
-                apply("CALL FTL_DROP_INDEX('PUBLIC', 'ACCOUNT')");
+                apply(null);
             case 251:
-                apply("CALL FTL_REINDEX()");              
+                apply(null);              
             case 252:
                 long votingBlockId = 0;
                 try {

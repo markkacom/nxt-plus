@@ -142,10 +142,29 @@ var NRS = (function (NRS, $, undefined) {
                 var phasingDetails = {};
                 phasingDetails.finishHeight = finishHeight;
                 phasingDetails.finishIn = ((finishHeight - NRS.lastBlockHeight) > 0) ? (finishHeight - NRS.lastBlockHeight) + " " + $.t("blocks") : $.t("finished");
-                phasingDetails.quorum = transaction.attachment.phasingQuorum;
-                phasingDetails.minBalance = transaction.attachment.phasingMinBalance;
                 var votingModel = NRS.getVotingModelName(parseInt(transaction.attachment.phasingVotingModel));
                 phasingDetails.votingModel = $.t(votingModel);
+
+                switch (votingModel) {
+                    case 'ASSET':
+                        NRS.sendRequest("getAsset", { "asset": transaction.attachment.phasingHolding }, function(response) {
+                            phasingDetails.quorum = NRS.convertToQNTf(transaction.attachment.phasingQuorum, response.decimals);
+                            phasingDetails.minBalance = NRS.convertToQNTf(transaction.attachment.phasingMinBalance, response.decimals);
+                        }, false);
+                        break;
+                      
+                    case 'CURRENCY':
+                        NRS.sendRequest("getCurrency", { "currency": transaction.attachment.phasingHolding }, function(response) {
+                            phasingDetails.quorum = NRS.convertToQNTf(transaction.attachment.phasingQuorum, response.decimals);
+                            phasingDetails.minBalance = NRS.convertToQNTf(transaction.attachment.phasingMinBalance, response.decimals);
+                        }, false);
+                        break;
+                      
+                    default:
+                        phasingDetails.quorum = transaction.attachment.phasingQuorum;
+                        phasingDetails.minBalance = transaction.attachment.phasingMinBalance;
+                }
+
                 var phasingTransactionLink = "<a href='#' class='show_transaction_modal_action' data-transaction='" + String(transaction.attachment.phasingHolding).escapeHTML() + "'>" + transaction.attachment.phasingHolding + "</a>";
                 if (NRS.constants.VOTING_MODELS[votingModel] == NRS.constants.VOTING_MODELS.ASSET) {
                     phasingDetails.asset_formatted_html = phasingTransactionLink;
@@ -540,6 +559,7 @@ var NRS = (function (NRS, $, undefined) {
                                 }, function (asset) {
                                     var data = {
                                         "type": $.t("ask_order_cancellation"),
+                                        "order_formatted_html": "<a href='#' class='show_transaction_modal_action' data-transaction='" + String(transaction.transaction).escapeHTML() + "'>" + transaction.transaction + "</a>",
                                         "asset_name": asset.name,
                                         "quantity": [transaction.attachment.quantityQNT, asset.decimals],
                                         "price_formatted_html": NRS.formatOrderPricePerWholeQNT(transaction.attachment.priceNQT, asset.decimals) + " NXT",
@@ -548,7 +568,6 @@ var NRS = (function (NRS, $, undefined) {
                                     data["sender"] = transaction.senderRS ? transaction.senderRS : transaction.sender;
                                     $("#transaction_info_table").find("tbody").append(NRS.createInfoTable(data));
                                     $("#transaction_info_table").show();
-
                                     $("#transaction_info_modal").modal("show");
                                     NRS.fetchingModalData = false;
                                 });
@@ -560,7 +579,6 @@ var NRS = (function (NRS, $, undefined) {
                         break;
                     case 5:
                         async = true;
-
                         NRS.sendRequest("getTransaction", {
                             "transaction": transaction.attachment.order
                         }, function (transaction) {
@@ -570,6 +588,7 @@ var NRS = (function (NRS, $, undefined) {
                                 }, function (asset) {
                                     var data = {
                                         "type": $.t("bid_order_cancellation"),
+                                        "order_formatted_html": "<a href='#' class='show_transaction_modal_action' data-transaction='" + String(transaction.transaction).escapeHTML() + "'>" + transaction.transaction + "</a>",
                                         "asset_name": asset.name,
                                         "quantity": [transaction.attachment.quantityQNT, asset.decimals],
                                         "price_formatted_html": NRS.formatOrderPricePerWholeQNT(transaction.attachment.priceNQT, asset.decimals) + " NXT",
@@ -578,7 +597,6 @@ var NRS = (function (NRS, $, undefined) {
                                     data["sender"] = transaction.senderRS ? transaction.senderRS : transaction.sender;
                                     $("#transaction_info_table").find("tbody").append(NRS.createInfoTable(data));
                                     $("#transaction_info_table").show();
-
                                     $("#transaction_info_modal").modal("show");
                                     NRS.fetchingModalData = false;
                                 });
@@ -920,7 +938,8 @@ var NRS = (function (NRS, $, undefined) {
                     case 0:
                         var data = {
                             "type": $.t("balance_leasing"),
-                            "period": transaction.attachment.period
+                            "period": transaction.attachment.period,
+                            "lessee": transaction.recipientRS ? transaction.recipientRS : transaction.recipient
                         };
 
                         $("#transaction_info_table").find("tbody").append(NRS.createInfoTable(data));

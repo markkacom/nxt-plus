@@ -153,6 +153,7 @@ final class PeerImpl implements Peer {
         if (version != null && version.length() > Peers.MAX_VERSION_LENGTH) {
             throw new IllegalArgumentException("Invalid version length: " + version.length());
         }
+        boolean versionChanged = version == null || !version.equals(this.version);
         this.version = version;
         isOldVersion = false;
         if (Nxt.APPLICATION.equals(application)) {
@@ -177,7 +178,9 @@ final class PeerImpl implements Peer {
                 }
             }
             if (isOldVersion) {
-                Logger.logDebugMessage(String.format("Blacklisting %s version %s", host, version));
+                if (versionChanged) {
+                    Logger.logDebugMessage(String.format("Blacklisting %s version %s", host, version));
+                }
                 blacklistingCause = "Old version: " + version;
                 lastInboundRequest = 0;
                 setState(State.NON_CONNECTED);
@@ -501,17 +504,24 @@ final class PeerImpl implements Peer {
             // Check for an error response
             //
             if (response != null && response.get("error") != null) {
-                Logger.logDebugMessage("Peer " + host + " version " + version + " returned error: " +
-                        response.toJSONString() + ", request was: " + JSON.toString(request) +
-                        ", disconnecting");
                 deactivate();
-                if (connection != null)
-                    connection.disconnect();
+                if (Errors.SEQUENCE_ERROR.equals(response.get("error")) && request != Peers.myPeerInfoRequest) {
+                    Logger.logDebugMessage("Sequence error, reconnecting to " + host);
+                    connect();
+                } else {
+                    Logger.logDebugMessage("Peer " + host + " version " + version + " returned error: " +
+                            response.toJSONString() + ", request was: " + JSON.toString(request) +
+                            ", disconnecting");
+                    if (connection != null) {
+                        connection.disconnect();
+                    }
+                }
             }
         } catch (NxtException.NxtIOException e) {
             blacklist(e);
-            if (connection != null)
+            if (connection != null) {
                 connection.disconnect();
+            }
         } catch (RuntimeException|ParseException|IOException e) {
             if (!(e instanceof UnknownHostException || e instanceof SocketTimeoutException ||
                                         e instanceof SocketException || Errors.END_OF_FILE.equals(e.getMessage()))) {
@@ -523,11 +533,13 @@ final class PeerImpl implements Peer {
                 showLog = true;
             }
             deactivate();
-            if (connection != null)
+            if (connection != null) {
                 connection.disconnect();
+            }
         }
-        if (showLog)
+        if (showLog) {
             Logger.logMessage(log + "\n");
+        }
 
         return response;
     }

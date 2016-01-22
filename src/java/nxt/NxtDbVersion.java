@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -17,7 +17,13 @@
 package nxt;
 
 import nxt.db.DbVersion;
+import nxt.util.Convert;
 import nxt.util.Logger;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 class NxtDbVersion extends DbVersion {
 
@@ -339,9 +345,9 @@ class NxtDbVersion extends DbVersion {
             case 129:
                 apply("ALTER TABLE goods ADD COLUMN IF NOT EXISTS parsed_tags ARRAY");
             case 130:
-                apply("CREATE ALIAS IF NOT EXISTS FTL_INIT FOR \"org.h2.fulltext.FullTextLucene.init\"");
+                apply(null);
             case 131:
-                apply("CALL FTL_INIT()");
+                apply(null);
             case 132:
                 apply(null);
             case 133:
@@ -808,7 +814,7 @@ class NxtDbVersion extends DbVersion {
             case 331:
                 apply("CREATE INDEX IF NOT EXISTS tagged_data_block_timestamp_height_db_id_idx ON tagged_data (block_timestamp DESC, height DESC, db_id DESC)");
             case 332:
-                apply("CALL FTL_CREATE_INDEX('PUBLIC', 'TAGGED_DATA', 'NAME,DESCRIPTION,TAGS')");
+                apply(null);
             case 333:
                 apply("CREATE TABLE IF NOT EXISTS data_tag (db_id IDENTITY, tag VARCHAR NOT NULL, tag_count INT NOT NULL, "
                         + "height INT NOT NULL, FOREIGN KEY (height) REFERENCES block (height) ON DELETE CASCADE, latest BOOLEAN NOT NULL DEFAULT TRUE)");
@@ -979,12 +985,212 @@ class NxtDbVersion extends DbVersion {
             case 413:
                 apply("CREATE INDEX IF NOT EXISTS exchange_request_height_idx ON exchange_request (height)");
             case 414:
-                BlockchainProcessorImpl.getInstance().scheduleScan(0, false);
                 apply(null);
             case 415:
+                apply("CREATE TABLE IF NOT EXISTS account_ledger (db_id IDENTITY, account_id BIGINT NOT NULL, "
+                        + "event_type TINYINT NOT NULL, event_id BIGINT NOT NULL, holding_type TINYINT NOT NULL, "
+                        + "holding_id BIGINT, change BIGINT NOT NULL, balance BIGINT NOT NULL, "
+                        + "block_id BIGINT NOT NULL, height INT NOT NULL, timestamp INT NOT NULL)");
+            case 416:
+                apply("CREATE INDEX IF NOT EXISTS account_ledger_id_idx ON account_ledger(account_id, db_id)");
+            case 417:
+                apply("CREATE INDEX IF NOT EXISTS account_ledger_height_idx ON account_ledger(height)");
+            case 418:
+                apply("ALTER TABLE peer ADD COLUMN IF NOT EXISTS services BIGINT");
+            case 419:
+                apply("TRUNCATE TABLE asset");
+            case 420:
+                apply("ALTER TABLE asset ADD COLUMN IF NOT EXISTS latest BOOLEAN NOT NULL DEFAULT TRUE");
+            case 421:
+                apply("DROP INDEX IF EXISTS asset_id_idx");
+            case 422:
+                apply("CREATE UNIQUE INDEX IF NOT EXISTS asset_id_height_idx ON asset(id, height)");
+            case 423:
+                apply("ALTER TABLE asset ADD COLUMN IF NOT EXISTS initial_quantity BIGINT NOT NULL");
+            case 424:
+                apply("CREATE TABLE IF NOT EXISTS tagged_data_extend (db_id IDENTITY, id BIGINT NOT NULL, "
+                        + "extend_id BIGINT NOT NULL, height INT NOT NULL, latest BOOLEAN NOT NULL DEFAULT TRUE)");
+            case 425:
+                apply("CREATE INDEX IF NOT EXISTS tagged_data_extend_id_height_idx ON tagged_data_extend(id, height DESC)");
+            case 426:
+                apply("CREATE INDEX IF NOT EXISTS tagged_data_extend_height_id_idx ON tagged_data_extend(height, id)");
+            case 427:
+                apply("ALTER TABLE transaction ADD COLUMN IF NOT EXISTS has_prunable_attachment BOOLEAN NOT NULL DEFAULT FALSE");
+            case 428:
+                apply("UPDATE transaction SET has_prunable_attachment = TRUE WHERE type = 6");
+            case 429:
+                apply("TRUNCATE TABLE account");
+            case 430:
+                apply("ALTER TABLE account DROP COLUMN IF EXISTS creation_height");
+            case 431:
+                apply("ALTER TABLE account DROP COLUMN IF EXISTS key_height");
+            case 432:
+                apply("DROP INDEX IF EXISTS public_key_account_id_idx");
+            case 433:
+                apply("ALTER TABLE public_key ADD COLUMN IF NOT EXISTS latest BOOLEAN NOT NULL DEFAULT TRUE");
+            case 434:
+                apply("CREATE UNIQUE INDEX IF NOT EXISTS public_key_account_id_height_idx ON public_key (account_id, height DESC)");
+            case 435:
+                apply(null);
+            case 436:
+                nxt.db.FullTextTrigger.init();
+                apply(null);
+            case 437:
+                apply("DROP INDEX IF EXISTS asset_height_idx");
+            case 438:
+                apply("DROP INDEX IF EXISTS asset_height_db_id_idx");
+            case 439:
+                apply("DROP INDEX IF EXISTS asset_id_height_idx");
+            case 440:
+                apply("CREATE UNIQUE INDEX IF NOT EXISTS asset_id_height_idx ON asset (id, height DESC)");
+            case 441:
+                apply("CREATE INDEX IF NOT EXISTS asset_height_id_idx ON asset (height, id)");
+            case 442:
+                apply("TRUNCATE TABLE account_ledger");
+            case 443:
+                apply("CREATE TABLE IF NOT EXISTS shuffling (db_id IDENTITY, id BIGINT NOT NULL, holding_id BIGINT NULL, holding_type TINYINT NOT NULL, "
+                        + "issuer_id BIGINT NOT NULL, amount BIGINT NOT NULL, participant_count TINYINT NOT NULL, blocks_remaining SMALLINT NULL, "
+                        + "stage TINYINT NOT NULL, assignee_account_id BIGINT NULL, "
+                        + "recipient_public_keys ARRAY, height INT NOT NULL, latest BOOLEAN NOT NULL DEFAULT TRUE)");
+            case 444:
+                apply("CREATE UNIQUE INDEX IF NOT EXISTS shuffling_id_height_idx ON shuffling (id, height DESC)");
+            case 445:
+                apply("CREATE INDEX IF NOT EXISTS shuffling_holding_id_height_idx ON shuffling (holding_id, height DESC)");
+            case 446:
+                apply("CREATE INDEX IF NOT EXISTS shuffling_assignee_account_id_height_idx ON shuffling (assignee_account_id, height DESC)");
+            case 447:
+                apply("CREATE INDEX IF NOT EXISTS shuffling_height_id_idx ON shuffling (height, id)");
+            case 448:
+                apply("CREATE TABLE IF NOT EXISTS shuffling_participant (db_id IDENTITY, shuffling_id BIGINT NOT NULL, "
+                        + "account_id BIGINT NOT NULL, next_account_id BIGINT NULL, participant_index TINYINT NOT NULL, "
+                        + "state TINYINT NOT NULL, blame_data ARRAY, key_seeds ARRAY, data_transaction_full_hash BINARY(32), "
+                        + "height INT NOT NULL, latest BOOLEAN NOT NULL DEFAULT TRUE)");
+            case 449:
+                apply("CREATE UNIQUE INDEX IF NOT EXISTS shuffling_participant_shuffling_id_account_id_idx ON shuffling_participant "
+                        + "(shuffling_id, account_id, height DESC)");
+            case 450:
+                apply("CREATE INDEX IF NOT EXISTS shuffling_participant_height_idx ON shuffling_participant (height, shuffling_id, account_id)");
+            case 451:
+                apply("CREATE TABLE IF NOT EXISTS shuffling_data (db_id IDENTITY, shuffling_id BIGINT NOT NULL, account_id BIGINT NOT NULL, "
+                        + "data ARRAY, transaction_timestamp INT NOT NULL, height INT NOT NULL, "
+                        + "FOREIGN KEY (height) REFERENCES block (height) ON DELETE CASCADE)");
+            case 452:
+                apply("CREATE UNIQUE INDEX IF NOT EXISTS shuffling_data_id_height_idx ON shuffling_data (shuffling_id, height DESC)");
+            case 453:
+                apply("CREATE INDEX shuffling_data_transaction_timestamp_idx ON shuffling_data (transaction_timestamp DESC)");
+            case 454:
+                apply("CREATE TABLE IF NOT EXISTS phasing_poll_linked_transaction (db_id IDENTITY, "
+                        + "transaction_id BIGINT NOT NULL, linked_full_hash BINARY(32) NOT NULL, linked_transaction_id BIGINT NOT NULL, "
+                        + "height INT NOT NULL)");
+            case 455:
+                apply("CREATE INDEX IF NOT EXISTS phasing_poll_linked_transaction_id_link_idx "
+                        + "ON phasing_poll_linked_transaction (transaction_id, linked_transaction_id)");
+            case 456:
+                apply("CREATE INDEX IF NOT EXISTS phasing_poll_linked_transaction_height_idx ON phasing_poll_linked_transaction (height)");
+            case 457:
+                apply("CREATE INDEX IF NOT EXISTS phasing_poll_linked_transaction_link_id_idx "
+                        + "ON phasing_poll_linked_transaction (linked_transaction_id, transaction_id)");
+            case 458:
+                apply("ALTER TABLE phasing_poll DROP COLUMN IF EXISTS linked_full_hashes");
+            case 459:
+                apply("CREATE TABLE IF NOT EXISTS account_control_phasing (db_id IDENTITY, account_id BIGINT NOT NULL, "
+                        + "whitelist ARRAY, voting_model TINYINT NOT NULL, quorum BIGINT, min_balance BIGINT, "
+                        + "holding_id BIGINT, min_balance_model TINYINT, max_fees BIGINT, min_duration SMALLINT, max_duration SMALLINT, "
+                        + "height INT NOT NULL, latest BOOLEAN NOT NULL DEFAULT TRUE)");
+            case 460:
+                apply("ALTER TABLE account ADD COLUMN IF NOT EXISTS has_control_phasing BOOLEAN NOT NULL DEFAULT FALSE");
+            case 461:
+                apply("CREATE UNIQUE INDEX IF NOT EXISTS account_control_phasing_id_height_idx ON account_control_phasing (account_id, height DESC)");
+            case 462:
+                apply("CREATE INDEX IF NOT EXISTS account_control_phasing_height_id_idx ON account_control_phasing (height, account_id)");
+            case 463:
+                apply("CREATE TABLE IF NOT EXISTS account_property (db_id IDENTITY, id BIGINT NOT NULL, account_id BIGINT NOT NULL, setter_id BIGINT, "
+                        + "property VARCHAR NOT NULL, value VARCHAR, height INT NOT NULL, latest BOOLEAN NOT NULL DEFAULT TRUE)");
+            case 464:
+                apply("CREATE UNIQUE INDEX IF NOT EXISTS account_property_id_height_idx ON account_property (id, height DESC)");
+            case 465:
+                apply("CREATE INDEX IF NOT EXISTS account_property_height_id_idx ON account_property (height, id)");
+            case 466:
+                apply("CREATE INDEX IF NOT EXISTS account_property_account_height_idx ON account_property (account_id, height DESC)");
+            case 467:
+                apply("CREATE INDEX IF NOT EXISTS account_property_setter_account_idx ON account_property (setter_id, account_id)");
+            case 468:
+                apply("CREATE TABLE IF NOT EXISTS asset_delete (db_id IDENTITY, id BIGINT NOT NULL, asset_id BIGINT NOT NULL, "
+                        + "account_id BIGINT NOT NULL, quantity BIGINT NOT NULL, timestamp INT NOT NULL, height INT NOT NULL)");
+            case 469:
+                apply("CREATE UNIQUE INDEX IF NOT EXISTS asset_delete_id_idx ON asset_delete (id)");
+            case 470:
+                apply("CREATE INDEX IF NOT EXISTS asset_delete_asset_id_idx ON asset_delete (asset_id, height DESC)");
+            case 471:
+                apply("CREATE INDEX IF NOT EXISTS asset_delete_account_id_idx ON asset_delete (account_id, height DESC)");
+            case 472:
+                apply("CREATE INDEX IF NOT EXISTS asset_delete_height_idx ON asset_delete (height)");
+            case 473:
+                apply("ALTER TABLE prunable_message ADD COLUMN IF NOT EXISTS encrypted_message VARBINARY");
+            case 474:
+                apply("ALTER TABLE prunable_message ADD COLUMN IF NOT EXISTS encrypted_is_text BOOLEAN DEFAULT FALSE");
+            case 475:
+                apply("UPDATE prunable_message SET encrypted_message = message WHERE is_encrypted IS TRUE");
+            case 476:
+                apply("ALTER TABLE prunable_message ALTER COLUMN message SET NULL");
+            case 477:
+                apply("UPDATE prunable_message SET message = NULL WHERE is_encrypted IS TRUE");
+            case 478:
+                apply("UPDATE prunable_message SET encrypted_is_text = TRUE WHERE is_encrypted IS TRUE AND is_text IS TRUE");
+            case 479:
+                apply("UPDATE prunable_message SET encrypted_is_text = FALSE WHERE is_encrypted IS TRUE AND is_text IS FALSE");
+            case 480:
+                apply("UPDATE prunable_message SET is_text = FALSE where is_encrypted IS TRUE");
+            case 481:
+                apply("ALTER TABLE prunable_message ALTER COLUMN is_text RENAME TO message_is_text");
+            case 482:
+                apply("ALTER TABLE prunable_message DROP COLUMN is_encrypted");
+            case 483:
+                apply(null);
+            case 484:
+                apply("TRUNCATE TABLE shuffling");
+            case 485:
+                apply("ALTER TABLE shuffling ADD COLUMN IF NOT EXISTS registrant_count TINYINT NOT NULL");
+            case 486:
+                apply(null);
+            case 487:
+                apply("ALTER TABLE account_property ALTER COLUMN account_id RENAME TO recipient_id");
+            case 488:
+                apply("ALTER INDEX account_property_account_height_idx RENAME TO account_property_recipient_height_idx");
+            case 489:
+                apply("ALTER INDEX account_property_setter_account_idx RENAME TO account_property_setter_recipient_idx");
+            case 490:
+                apply(null);
+            case 491:
+                apply("CREATE TABLE referenced_transaction (db_id IDENTITY, transaction_id BIGINT NOT NULL, "
+                        + "FOREIGN KEY (transaction_id) REFERENCES transaction (id) ON DELETE CASCADE, "
+                        + "referenced_transaction_id BIGINT NOT NULL)");
+            case 492:
+                try (Connection con = db.getConnection();
+                     PreparedStatement pstmt = con.prepareStatement(
+                             "SELECT id, referenced_transaction_full_hash FROM transaction WHERE referenced_transaction_full_hash IS NOT NULL");
+                     PreparedStatement pstmtInsert = con.prepareStatement(
+                             "INSERT INTO referenced_transaction (transaction_id, referenced_transaction_id) VALUES (?, ?)");
+                     ResultSet rs = pstmt.executeQuery()) {
+                    while (rs.next()) {
+                        pstmtInsert.setLong(1, rs.getLong("id"));
+                        pstmtInsert.setLong(2, Convert.fullHashToId(rs.getBytes("referenced_transaction_full_hash")));
+                        pstmtInsert.executeUpdate();
+                    }
+                } catch (SQLException e) {
+                    throw new RuntimeException(e.toString(), e);
+                }
+                apply(null);
+            case 493:
+                apply("CREATE INDEX IF NOT EXISTS referenced_transaction_referenced_transaction_id_idx ON referenced_transaction (referenced_transaction_id)");
+            case 494:
+                BlockchainProcessorImpl.getInstance().scheduleScan(0, false);
+                apply(null);
+            case 495:
                 return;
             default:
-                throw new RuntimeException("Blockchain database inconsistent with code, at update " + nextUpdate + ", probably trying to run older code on newer database");
+                throw new RuntimeException("Blockchain database inconsistent with code, at update " + nextUpdate
+                        + ", probably trying to run older code on newer database");
         }
     }
 }

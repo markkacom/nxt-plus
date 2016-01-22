@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -38,9 +38,7 @@ final class ProcessTransactions extends PeerServlet.PeerRequestHandler {
         } catch (RuntimeException | NxtException.ValidationException e) {
             //Logger.logDebugMessage("Failed to parse peer transactions: " + request.toJSONString());
             peer.blacklist(e);
-            JSONObject response = new JSONObject();
-            response.put("error", e.toString());
-            return response;
+            return PeerServlet.error(e);
         }
 
     }

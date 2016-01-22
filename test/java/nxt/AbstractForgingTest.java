@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -24,7 +24,7 @@ public abstract class AbstractForgingTest extends AbstractBlockchainTest {
 
     protected static final int minStartHeight = 150000;
     protected static int startHeight;
-    protected static String testForgingSecretPhrase;
+    protected final static String testForgingSecretPhrase = "aSykrgKGZNlSVOMDxkZZgbTvQqJPGtsBggb";
 
     protected static Properties newTestProperties() {
         Properties properties = AbstractBlockchainTest.newTestProperties();

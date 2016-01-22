@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -22,11 +22,7 @@ var NRS = (function(NRS, $, undefined) {
 	NRS.showRawTransactionModal = function(transaction) {
         if (transaction.unsignedTransactionBytes && !transaction.transactionBytes) {
             $("#raw_transaction_modal_unsigned_transaction_bytes").val(transaction.unsignedTransactionBytes);
-            $("#raw_transaction_modal_unsigned_bytes_qr_code").empty().qrcode({
-                "text": transaction.unsignedTransactionBytes,
-                "width": 384,
-                "height": 384
-            });
+            NRS.sendRequestQRCode("#raw_transaction_modal_unsigned_bytes_qr_code", transaction.unsignedTransactionBytes, 400, 400);
             $("#raw_transaction_modal_unsigned_transaction_bytes_container").show();
             $("#raw_transaction_modal_unsigned_bytes_qr_code_container").show();
             $("#raw_transaction_broadcast").show();
@@ -37,18 +33,21 @@ var NRS = (function(NRS, $, undefined) {
         }
 
         if (transaction.transactionJSON) {
+            var namePrefix;
             if (transaction.transactionBytes) {
-                $("#raw_transaction_modal_unsigned_transaction_json_label").html($.t("signed_transaction_json"));
+                $("#raw_transaction_modal_transaction_json_label").html($.t("signed_transaction_json"));
+                namePrefix = "signed";
             } else {
-                $("#raw_transaction_modal_unsigned_transaction_json_label").html($.t("unsigned_transaction_json"));
+                $("#raw_transaction_modal_transaction_json_label").html($.t("unsigned_transaction_json"));
+                namePrefix = "unsigned";
             }
-            var unsignedTransactionJson = $("#raw_transaction_modal_unsigned_transaction_json");
+            var unsignedTransactionJson = $("#raw_transaction_modal_transaction_json");
             var jsonStr = JSON.stringify(transaction.transactionJSON);
             unsignedTransactionJson.val(jsonStr);
-            var downloadLink = $("#raw_transaction_modal_unsigned_transaction_json_download");
+            var downloadLink = $("#raw_transaction_modal_transaction_json_download");
             if (window.URL) {
                 var jsonAsBlob = new Blob([jsonStr], {type: 'text/plain'});
-                downloadLink.prop('download', 'unsigned.transaction.' + transaction.transactionJSON.timestamp + '.json');
+                downloadLink.prop('download', namePrefix + '.transaction.' + transaction.transactionJSON.timestamp + '.json');
                 downloadLink.prop('href', window.URL.createObjectURL(jsonAsBlob));
             } else {
                 downloadLink.hide();
@@ -141,7 +140,7 @@ var NRS = (function(NRS, $, undefined) {
     NRS.forms.broadcastTransaction = function(modal) {
         // The problem is that broadcastTransaction is invoked by different modals
         // We need to find the correct form in case the modal has more than one
-        var data
+        var data;
         if (modal.attr('id') == "transaction_json_modal") {
             data = NRS.getFormData($("#broadcast_json_form"));
         } else {
@@ -176,15 +175,30 @@ var NRS = (function(NRS, $, undefined) {
 			}
 		}
 
+		var minDuration = 0;
+		var maxDuration = 0;
+
+		if (NRS.accountInfo.phasingOnly) {
+			minDuration = NRS.accountInfo.phasingOnly.minDuration;
+			maxDuration = NRS.accountInfo.phasingOnly.maxDuration;
+		}
+
+		if (maxDuration == 0) {
+			maxDuration = NRS.constants.SERVER.maxPhasingDuration;
+		}
+
 		var context = {
 			labelText: "Finish Height",
 			labelI18n: "finish_height",
 			helpI18n: "approve_transaction_finish_height_help",
 			inputName: "phasingFinishHeight",
-			initBlockHeight: NRS.lastBlockHeight + 7000,
+			initBlockHeight: NRS.lastBlockHeight + Math.round(minDuration + (maxDuration - minDuration) / 2),
 			changeHeightBlocks: 500
 		};
 		var $elems = NRS.initModalUIElement($modal, '.phasing_finish_height_group', 'block_height_modal_ui_element', context);
+		$elems.find('input').prop("disabled", true);
+
+		$elems = NRS.initModalUIElement($modal, '.mandatory_approval_finish_height_group', 'block_height_modal_ui_element', context);
 		$elems.find('input').prop("disabled", true);
 
 		context = {
@@ -314,25 +328,28 @@ var NRS = (function(NRS, $, undefined) {
 		};
 		NRS.initModalUIElement($modal, '.hash_algorithm_model_group', 'hash_algorithm_model_modal_ui_element', context);
 
-		_setApprovalFeeAddition($modal);
+		_setMandatoryApproval($modal);
 	};
 
-	function _setApprovalFeeAddition($modal) {
-		if (!$modal) {
-			$modal = $('.modal:visible');
-		}
-		var feeAddition = $modal.find('.approve_tab_list li.active a').data("feeNxtApprovalAddition");
-		var $mbSelect = $modal.find('.tab_pane_approve.active .approve_min_balance_model_group select');
-		if($mbSelect.length > 0 && $mbSelect.val() != "0") {
-			feeAddition = String(20);
-		}
+	function _setMandatoryApproval($modal) {
+		$modal.one('shown.bs.modal', function() {
+			var requestType = $modal.find('input[name="request_type"]').val();
 
-        $modal.find("input[name='feeNXT_approval_addition']").val(feeAddition);
-        $modal.find("span.feeNXT_approval_addition_info").html("+" + feeAddition);
+			if (requestType != "approveTransaction"
+				&& NRS.accountInfo.accountControls && $.inArray('PHASING_ONLY', NRS.accountInfo.accountControls) > -1
+				&& NRS.accountInfo.phasingOnly
+				&& NRS.accountInfo.phasingOnly.votingModel >= 0) {
+
+				$modal.find('.advanced_mandatory_approval input').prop('disabled', false);
+				$modal.find('.advanced_mandatory_approval').show();
+
+			} else {
+				$modal.find('.advanced_mandatory_approval').hide();
+			}
+		});
 	}
 
 	$('.approve_tab_list a[data-toggle="tab"]').on('shown.bs.tab', function () {
-		_setApprovalFeeAddition();
         var $am = $(this).closest('.approve_modal');
         $am.find('.tab-pane input, .tab-pane select').prop('disabled', true);
         $am.find('.tab-pane.active input, .tab-pane.active select').prop('disabled', false);
@@ -347,7 +364,6 @@ var NRS = (function(NRS, $, undefined) {
     });
 
 	$('body').on('change', '.modal .approve_modal .approve_min_balance_model_group select', function() {
-		_setApprovalFeeAddition();
 		var $tabPane = $(this).closest('div.tab_pane_approve');
 		var mbModelId = $(this).val();
 		for(var id=0; id<=3; id++) {
@@ -368,6 +384,8 @@ var NRS = (function(NRS, $, undefined) {
 	});
 
     transactionJSONModal.on("hidden.bs.modal", function() {
+		var reader = $('#unsigned_transaction_bytes_reader');
+		if(reader.data('stream')) reader.html5_qrcode_stop();
 		$(this).find(".tab_content").hide();
 		$(this).find("ul.nav li.active").removeClass("active");
 		$(this).find("ul.nav li:first").addClass("active");
@@ -443,11 +461,7 @@ var NRS = (function(NRS, $, undefined) {
         }
         $("#signed_json_output").show();
         $("#transaction_signature").val(response.transactionJSON.signature);
-        $("#transaction_signature_qr_code").empty().qrcode({
-            "text": response.transactionJSON.signature,
-            "width": 256,
-            "height": 256
-        });
+        NRS.sendRequestQRCode("#transaction_signature_qr_code", response.transactionJSON.signature, 292, 292);
         $("#signature_output").show();
     };
 

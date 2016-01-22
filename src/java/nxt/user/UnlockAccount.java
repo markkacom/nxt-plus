@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -136,7 +136,7 @@ public final class UnlockAccount extends UserServlet.UserRequestHandler {
             SortedSet<JSONObject> myTransactionsSet = new TreeSet<>(myTransactionsComparator);
 
             int blockchainHeight = Nxt.getBlockchain().getLastBlock().getHeight();
-            try (DbIterator<? extends Block> blockIterator = Nxt.getBlockchain().getBlocks(account, 0)) {
+            try (DbIterator<? extends Block> blockIterator = Nxt.getBlockchain().getBlocks(accountId, 0)) {
                 while (blockIterator.hasNext()) {
                     Block block = blockIterator.next();
                     if (block.getTotalFeeNQT() > 0) {
@@ -153,7 +153,7 @@ public final class UnlockAccount extends UserServlet.UserRequestHandler {
                 }
             }
 
-            try (DbIterator<? extends Transaction> transactionIterator = Nxt.getBlockchain().getTransactions(account, (byte) -1, (byte) -1, 0)) {
+            try (DbIterator<? extends Transaction> transactionIterator = Nxt.getBlockchain().getTransactions(accountId, (byte) -1, (byte) -1, 0, false)) {
                 while (transactionIterator.hasNext()) {
                     Transaction transaction = transactionIterator.next();
                     if (transaction.getSenderId() == accountId) {

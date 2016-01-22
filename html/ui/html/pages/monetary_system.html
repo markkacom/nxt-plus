@@ -1,5 +1,5 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ~ Copyright © 2013-2015 The Nxt Core Developers.                            ~
+  ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
   ~                                                                           ~
   ~ See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at     ~
   ~ the top-level directory of this distribution for the individual copyright ~
@@ -105,7 +105,7 @@
                         </div>
                     </div>
                     <div class="box-body no-padding" style="display:none">
-                        <div style="background-color:#DFF0D9;color: #666;padding-left:10px;padding-right: 10px;padding-top: 0px;padding-bottom:3px;" id="buy_automatic_currency_price"><strong data-i18n="balance">Balance</strong>:
+                        <div style="background-color:#DFF0D9;color: #666;padding-left:10px;padding-right: 10px;padding-top: 0px;padding-bottom:3px;"><strong data-i18n="balance">Balance</strong>:
                             <span id="ms_your_nxt_balance"></span> NXT
                         </div>
                 
@@ -121,10 +121,19 @@
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label for="buy_currency_price" class="col-sm-3 control-label" data-i18n="rate">Rate</label>
+                                    <label for="buy_currency_rate" class="col-sm-3 control-label" data-i18n="maximum_rate">Maximum Rate</label>
                                     <div class="col-sm-9">
                                         <div class="input-group">
-                                            <input id="buy_currency_price" type="text" value="0" name="buy_currency_price" class="form-control" data-type="buy" />
+                                            <input id="buy_currency_rate" type="text" value="0" name="buy_currency_rate" class="form-control" data-type="buy" readonly/>
+                                            <span class="input-group-addon"><span class="currency_code"></span> / NXT</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="buy_currency_effective_rate" class="col-sm-3 control-label" data-i18n="effective_rate">Effective Rate</label>
+                                    <div class="col-sm-9">
+                                        <div class="input-group">
+                                            <input id="buy_currency_effective_rate" type="text" value="0" name="buy_currency_effective_rate" class="form-control" data-type="buy" readonly/>
                                             <span class="input-group-addon"><span class="currency_code"></span> / NXT</span>
                                         </div>
                                     </div>
@@ -138,19 +147,10 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="form-group">
-                                    <label for="buy_currency_fee" class="col-sm-3 control-label" data-i18n="fee">Fee</label>
-                                    <div class="col-sm-9">
-                                        <div class="input-group">
-                                            <input type="text" id="buy_currency_fee" name="buy_currency_fee" value="1" class="form-control" />
-                                            <span class="input-group-addon">NXT</span>
-                                        </div>
-                                    </div>
-                                </div>
                                 <div class="form-group form-group-last">
                                     <div class="col-sm-3"></div>
                                     <div class="col-sm-9">
-                                        <button type="button" class="btn btn-primary btn-lg btn-block" id="buy_currency_button" data-toggle="modal" data-target="#currency_order_modal" data-currency="" data-decimals="" data-type="buy"><span data-i18n="buy">Exchange</span> (NXT → <span class="currency_code"></span>)</button>
+                                        <button type="button" disabled class="btn btn-primary btn-lg btn-block" id="buy_currency_button" data-toggle="modal" data-target="#currency_order_modal" data-currency="" data-decimals="" data-type="buy"><span data-i18n="buy">Exchange</span> (NXT → <span class="currency_code"></span>)</button>
                                     </div>
                                 </div>
                             </div>
@@ -176,7 +176,7 @@
                                 </tbody>
                             </table>
                             <div class="data-loading-container"><img src="img/loading_indicator.gif" alt="Loading..." width="32" height="32" /></div>
-                            <div class="data-empty-container"><p data-i18n="no_open_sell_offers">No open sell offers.</p></div>
+                            <div class="data-empty-container"><p data-i18n="no_open_sell_offers">No open sell offers. You cannot sell this currency now, but you could publish an exchange offer instead, and wait for others to fill it.</p></div>
                         </div>
                     </div>
                 </div>
@@ -190,7 +190,7 @@
                         </div>
                     </div>
                     <div class="box-body no-padding" style="display:none">
-                        <div style="background-color:#F2DEDE;color: #666;padding-left:10px;padding-right: 10px;padding-top: 0px;padding-bottom:3px;" id="sell_automatic_currency_price"><strong data-i18n="balance">Balance</strong>:
+                        <div style="background-color:#F2DEDE;color: #666;padding-left:10px;padding-right: 10px;padding-top: 0px;padding-bottom:3px;"><strong data-i18n="balance">Balance</strong>:
                             <span id="your_currency_balance"></span> <span class="currency_code"></span>
                         </div>
                 
@@ -206,10 +206,19 @@
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label for="sell_currency_price" class="col-sm-3 control-label" data-i18n="rate">Rate</label>
+                                    <label for="sell_currency_rate" class="col-sm-3 control-label" data-i18n="minimum_rate">Minimum Rate</label>
                                     <div class="col-sm-9">
                                         <div class="input-group">
-                                            <input id="sell_currency_price" type="text" value="0" name="sell_currency_price" class="form-control" data-type="sell" />
+                                            <input id="sell_currency_rate" type="text" value="0" name="sell_currency_rate" class="form-control" data-type="sell" readonly/>
+                                            <span class="input-group-addon"><span class="currency_code"></span> / NXT</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="sell_currency_effective_rate" class="col-sm-3 control-label" data-i18n="effective_rate">Effective Rate</label>
+                                    <div class="col-sm-9">
+                                        <div class="input-group">
+                                            <input id="sell_currency_effective_rate" type="text" value="0" name="sell_currency_rate" class="form-control" data-type="sell" readonly/>
                                             <span class="input-group-addon"><span class="currency_code"></span> / NXT</span>
                                         </div>
                                     </div>
@@ -223,19 +232,10 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="form-group">
-                                    <label for="sell_currency_fee" class="col-sm-3 control-label" data-i18n="fee">Fee</label>
-                                    <div class="col-sm-9">
-                                        <div class="input-group">
-                                            <input type="text" id="sell_currency_fee" name="sell_currency_fee" value="1" class="form-control" />
-                                            <span class="input-group-addon">NXT</span>
-                                        </div>
-                                    </div>
-                                </div>
                                 <div class="form-group form-group-last">
                                     <div class="col-sm-3"></div>
                                     <div class="col-sm-9">
-                                        <button type="button" class="btn btn-primary btn-lg btn-block" id="sell_currency_button" data-toggle="modal" data-target="#currency_order_modal" data-currency="" data-decimals="" data-type="sell"><span data-i18n="sell">Exchange</span> (<span class="currency_code"></span> → NXT)</button>
+                                        <button type="button" disabled class="btn btn-primary btn-lg btn-block" id="sell_currency_button" data-toggle="modal" data-target="#currency_order_modal" data-currency="" data-decimals="" data-type="sell"><span data-i18n="sell">Exchange</span> (<span class="currency_code"></span> → NXT)</button>
                                     </div>
                                 </div>
                             </div>
@@ -261,7 +261,7 @@
                                 </tbody>
                             </table>
                             <div class="data-loading-container"><img src="img/loading_indicator.gif" alt="Loading..." width="32" height="32" /></div>
-                            <div class="data-empty-container"><p data-i18n="no_open_buy_offers">No open buy offers.</p></div>
+                            <div class="data-empty-container"><p data-i18n="no_open_buy_offers">No open buy offers. You cannot sell this currency now, but you could publish an exchange offer instead, and wait for others to fill it.</p></div>
                         </div>
                     </div>
                 </div>
@@ -402,6 +402,32 @@
             </div>
         </div>
     </div>
+        <div class="data-pagination"></div>
+    </section>
+</div>
+
+<div id="currency_transfer_history_page" class="paginated page">
+    <section class="content-header"><h1 data-i18n="transfer_history">Transfer History</h1></section>
+    <section class="content">
+        <div class="data-container data-loading">
+            <table class="table table-striped" id="currency_transfer_history_table">
+                <thead>
+                <tr>
+                    <th data-i18n="transaction">Transaction</th>
+                    <th data-i18n="currency">Currency</th>
+                    <th data-i18n="date">Date</th>
+                    <th data-i18n="units">Units</th>
+                    <th data-i18n="recipient">Recipient</th>
+                    <th data-i18n="sender">Sender</th>
+                </tr>
+                </thead>
+                <tbody>
+
+                </tbody>
+            </table>
+            <div class="data-loading-container"><img src="img/loading_indicator.gif" alt="Loading..." width="32" height="32" /></div>
+            <div class="data-empty-container"><p data-i18n="no_currency_transfer_history">No currency transfer history available.</p></div>
+        </div>
         <div class="data-pagination"></div>
     </section>
 </div>

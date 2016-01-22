@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -17,6 +17,7 @@
 package nxt.http;
 
 import nxt.Account;
+import nxt.AccountRestrictions;
 import nxt.Alias;
 import nxt.Asset;
 import nxt.AssetTransfer;
@@ -30,17 +31,19 @@ import nxt.ExchangeRequest;
 import nxt.Generator;
 import nxt.Nxt;
 import nxt.Order;
-import nxt.PhasingPoll;
 import nxt.Poll;
 import nxt.PrunableMessage;
+import nxt.Shuffling;
 import nxt.TaggedData;
 import nxt.Trade;
 import nxt.Vote;
 import nxt.peer.Peers;
+import nxt.util.UPnP;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
 
 import javax.servlet.http.HttpServletRequest;
+import java.net.InetAddress;
 
 public final class GetState extends APIServlet.APIRequestHandler {
 
@@ -55,7 +58,7 @@ public final class GetState extends APIServlet.APIRequestHandler {
 
         JSONObject response = GetBlockchainStatus.instance.processRequest(req);
 
-        if (!"false".equalsIgnoreCase(req.getParameter("includeCounts")) && API.checkPassword(req)) {
+        if ("true".equalsIgnoreCase(req.getParameter("includeCounts")) && API.checkPassword(req)) {
             response.put("numberOfTransactions", Nxt.getBlockchain().getTransactionCount());
             response.put("numberOfAccounts", Account.getCount());
             response.put("numberOfAssets", Asset.getCount());
@@ -77,12 +80,14 @@ public final class GetState extends APIServlet.APIRequestHandler {
             response.put("numberOfTags", DigitalGoodsStore.Tag.getCount());
             response.put("numberOfPolls", Poll.getCount());
             response.put("numberOfVotes", Vote.getCount());
-            response.put("numberOfPhasedTransactions", PhasingPoll.getPhasedCount());
             response.put("numberOfPrunableMessages", PrunableMessage.getCount());
             response.put("numberOfTaggedData", TaggedData.getCount());
             response.put("numberOfDataTags", TaggedData.Tag.getTagCount());
             response.put("numberOfAccountLeases", Account.getAccountLeaseCount());
             response.put("numberOfActiveAccountLeases", Account.getActiveLeaseCount());
+            response.put("numberOfShufflings", Shuffling.getCount());
+            response.put("numberOfActiveShufflings", Shuffling.getActiveCount());
+            response.put("numberOfPhasingOnlyAccounts", AccountRestrictions.PhasingOnly.getCount());
         }
         response.put("numberOfPeers", Peers.getAllPeers().size());
         response.put("numberOfActivePeers", Peers.getActivePeers().size());
@@ -94,6 +99,10 @@ public final class GetState extends APIServlet.APIRequestHandler {
         response.put("peerPort", Peers.getDefaultPeerPort());
         response.put("isOffline", Constants.isOffline);
         response.put("needsAdminPassword", !API.disableAdminPassword);
+        InetAddress externalAddress = UPnP.getExternalAddress();
+        if (externalAddress != null) {
+            response.put("upnpExternalAddress", externalAddress.getHostAddress());
+        }
         return response;
     }
 

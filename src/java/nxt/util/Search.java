@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -20,34 +20,41 @@ import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
-import org.apache.lucene.util.Version;
+import org.apache.tika.Tika;
 
 import java.io.IOException;
-import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 
 public final class Search {
 
-    private static final Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_30);
+    private static final Analyzer analyzer = new StandardAnalyzer();
 
     public static String[] parseTags(String tags, int minTagLength, int maxTagLength, int maxTagCount) {
         if (tags.trim().length() == 0) {
             return Convert.EMPTY_STRING;
         }
         List<String> list = new ArrayList<>();
-        try (TokenStream stream = analyzer.tokenStream(null, new StringReader(tags))) {
+        try (TokenStream stream = analyzer.tokenStream(null, tags)) {
             CharTermAttribute attribute = stream.addAttribute(CharTermAttribute.class);
             String tag;
-            while (stream.incrementToken() && list.size() < maxTagCount && (tag = attribute.toString()).length() <= maxTagLength && tag.length() >= minTagLength) {
+            stream.reset();
+            while (stream.incrementToken() && list.size() < maxTagCount &&
+                    (tag = attribute.toString()).length() <= maxTagLength && tag.length() >= minTagLength) {
                 if (!list.contains(tag)) {
                     list.add(tag);
                 }
             }
+            stream.end();
         } catch (IOException e) {
             throw new RuntimeException(e.toString(), e);
         }
         return list.toArray(new String[list.size()]);
+    }
+
+    public static String detectMimeType(byte[] data, String filename) {
+        Tika tika = new Tika();
+        return tika.detect(data, filename);
     }
 
     private Search() {}

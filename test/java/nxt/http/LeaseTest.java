@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -47,6 +47,7 @@ public class LeaseTest extends BlockchainTest {
         // effective balance hasn't changed since lease is not in effect yet
         JSONObject lesseeResponse = new APICall.Builder("getAccount").
                 param("account", ALICE.getRsAccount()).
+                param("includeEffectiveBalance", "true").
                 build().invoke();
         Logger.logDebugMessage("getLesseeAccount: " + lesseeResponse);
         Assert.assertEquals(ALICE.getInitialEffectiveBalance(), lesseeResponse.get("effectiveBalanceNXT"));
@@ -71,14 +72,16 @@ public class LeaseTest extends BlockchainTest {
 
         lesseeResponse = new APICall.Builder("getAccount").
                 param("account", ALICE.getRsAccount()).
+                param("includeEffectiveBalance", "true").
                 build().invoke();
         Logger.logDebugMessage("getLesseeAccount: " + lesseeResponse);
-        Assert.assertEquals(ALICE.getInitialEffectiveBalance() + BOB.getInitialEffectiveBalance() + CHUCK.getInitialEffectiveBalance() - 2 + 1,
+        Assert.assertEquals((ALICE.getInitialBalance() + BOB.getInitialBalance() + CHUCK.getInitialBalance()) / Constants.ONE_NXT - 2,
                 lesseeResponse.get("effectiveBalanceNXT"));
         generateBlock();
         generateBlock();
         lesseeResponse = new APICall.Builder("getAccount").
                 param("account", ALICE.getRsAccount()).
+                param("includeEffectiveBalance", "true").
                 build().invoke();
         Logger.logDebugMessage("getLesseeAccount: " + lesseeResponse);
         Assert.assertEquals((ALICE.getInitialBalance() + CHUCK.getInitialBalance()) / Constants.ONE_NXT - 1 /* fees */,
@@ -86,6 +89,7 @@ public class LeaseTest extends BlockchainTest {
         generateBlock();
         lesseeResponse = new APICall.Builder("getAccount").
                 param("account", ALICE.getRsAccount()).
+                param("includeEffectiveBalance", "true").
                 build().invoke();
         Logger.logDebugMessage("getLesseeAccount: " + lesseeResponse);
         Assert.assertEquals((ALICE.getInitialBalance()) / Constants.ONE_NXT,

@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -17,7 +17,6 @@
 package nxt;
 
 import nxt.crypto.Crypto;
-import nxt.db.DbIterator;
 import nxt.util.Listener;
 import nxt.util.Logger;
 import org.junit.Assert;
@@ -56,6 +55,7 @@ public abstract class AbstractBlockchainTest {
         blockchain = BlockchainImpl.getInstance();
         blockchainProcessor = BlockchainProcessorImpl.getInstance();
         blockchainProcessor.setGetMoreBlocks(false);
+        TransactionProcessorImpl.getInstance().clearUnconfirmedTransactions();
         Listener<Block> countingListener = block -> {
             if (block.getHeight() % 1000 == 0) {
                 Logger.logMessage("downloaded block " + block.getHeight());
@@ -65,11 +65,7 @@ public abstract class AbstractBlockchainTest {
     }
 
     protected static void shutdown() {
-        TransactionProcessorImpl transactionProcessor = TransactionProcessorImpl.getInstance();
-        DbIterator<UnconfirmedTransaction> allUnconfirmedTransactions = transactionProcessor.getAllUnconfirmedTransactions();
-        for (UnconfirmedTransaction unconfirmedTransaction : allUnconfirmedTransactions) {
-            transactionProcessor.removeUnconfirmedTransaction(unconfirmedTransaction.getTransaction());
-        }
+        TransactionProcessorImpl.getInstance().clearUnconfirmedTransactions();
     }
 
     protected static void downloadTo(final int endHeight) {

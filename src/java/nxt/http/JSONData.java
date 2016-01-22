@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -17,9 +17,12 @@
 package nxt.http;
 
 import nxt.Account;
+import nxt.AccountLedger.LedgerEntry;
+import nxt.AccountRestrictions;
 import nxt.Alias;
 import nxt.Appendix;
 import nxt.Asset;
+import nxt.AssetDelete;
 import nxt.AssetTransfer;
 import nxt.Attachment;
 import nxt.Block;
@@ -33,6 +36,7 @@ import nxt.DigitalGoodsStore;
 import nxt.Exchange;
 import nxt.ExchangeRequest;
 import nxt.Generator;
+import nxt.HoldingType;
 import nxt.MonetarySystem;
 import nxt.Nxt;
 import nxt.Order;
@@ -40,6 +44,9 @@ import nxt.PhasingPoll;
 import nxt.PhasingVote;
 import nxt.Poll;
 import nxt.PrunableMessage;
+import nxt.Shuffler;
+import nxt.Shuffling;
+import nxt.ShufflingParticipant;
 import nxt.TaggedData;
 import nxt.Token;
 import nxt.Trade;
@@ -48,9 +55,11 @@ import nxt.Vote;
 import nxt.VoteWeighting;
 import nxt.crypto.Crypto;
 import nxt.crypto.EncryptedData;
+import nxt.db.DbIterator;
 import nxt.peer.Hallmark;
 import nxt.peer.Peer;
 import nxt.util.Convert;
+import nxt.util.Filter;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
@@ -124,6 +133,7 @@ final class JSONData {
         json.put("name", asset.getName());
         json.put("description", asset.getDescription());
         json.put("decimals", asset.getDecimals());
+        json.put("initialQuantityQNT", String.valueOf(asset.getInitialQuantityQNT()));
         json.put("quantityQNT", String.valueOf(asset.getQuantityQNT()));
         json.put("asset", Long.toUnsignedString(asset.getId()));
         if (includeCounts) {
@@ -201,6 +211,19 @@ final class JSONData {
         if (includeCurrencyInfo) {
             putCurrencyInfo(json, accountCurrency.getCurrencyId());
         }
+        return json;
+    }
+
+    static JSONObject accountProperty(Account.AccountProperty accountProperty, boolean includeAccount, boolean includeSetter) {
+        JSONObject json = new JSONObject();
+        if (includeAccount) {
+            putAccount(json, "recipient", accountProperty.getRecipientId());
+        }
+        if (includeSetter) {
+            putAccount(json, "setter", accountProperty.getSetterId());
+        }
+        json.put("property", accountProperty.getProperty());
+        json.put("value", accountProperty.getValue());
         return json;
     }
 
@@ -304,7 +327,78 @@ final class JSONData {
         return json;
     }
 
-    static JSONObject block(Block block, boolean includeTransactions) {
+    static JSONObject availableOffers(CurrencyExchangeOffer.AvailableOffers availableOffers) {
+        JSONObject json = new JSONObject();
+        json.put("rateNQT", String.valueOf(availableOffers.getRateNQT()));
+        json.put("units", String.valueOf(availableOffers.getUnits()));
+        json.put("amountNQT", String.valueOf(availableOffers.getAmountNQT()));
+        return json;
+    }
+
+    static JSONObject shuffling(Shuffling shuffling, boolean includeHoldingInfo) {
+        JSONObject json = new JSONObject();
+        json.put("shuffling", Long.toUnsignedString(shuffling.getId()));
+        putAccount(json, "issuer", shuffling.getIssuerId());
+        json.put("holding", Long.toUnsignedString(shuffling.getHoldingId()));
+        json.put("holdingType", shuffling.getHoldingType().getCode());
+        if (shuffling.getAssigneeAccountId() != 0) {
+            putAccount(json, "assignee", shuffling.getAssigneeAccountId());
+        }
+        json.put("amount", String.valueOf(shuffling.getAmount()));
+        json.put("blocksRemaining", shuffling.getBlocksRemaining());
+        json.put("participantCount", shuffling.getParticipantCount());
+        json.put("registrantCount", shuffling.getRegistrantCount());
+        json.put("stage", shuffling.getStage().getCode());
+        json.put("shufflingStateHash", Convert.toHexString(shuffling.getStateHash()));
+        json.put("shufflingFullHash", Convert.toHexString(shuffling.getFullHash()));
+        JSONArray recipientPublicKeys = new JSONArray();
+        for (byte[] recipientPublicKey : shuffling.getRecipientPublicKeys()) {
+            recipientPublicKeys.add(Convert.toHexString(recipientPublicKey));
+        }
+        if (recipientPublicKeys.size() > 0) {
+            json.put("recipientPublicKeys", recipientPublicKeys);
+        }
+        if (includeHoldingInfo && shuffling.getHoldingType() != HoldingType.NXT) {
+            JSONObject holdingJson = new JSONObject();
+            if (shuffling.getHoldingType() == HoldingType.ASSET) {
+                putAssetInfo(holdingJson, shuffling.getHoldingId());
+            } else if (shuffling.getHoldingType() == HoldingType.CURRENCY) {
+                putCurrencyInfo(holdingJson, shuffling.getHoldingId());
+            }
+            json.put("holdingInfo", holdingJson);
+        }
+        return json;
+    }
+
+    static JSONObject participant(ShufflingParticipant participant) {
+        JSONObject json = new JSONObject();
+        json.put("shuffling", Long.toUnsignedString(participant.getShufflingId()));
+        putAccount(json, "account", participant.getAccountId());
+        putAccount(json, "nextAccount", participant.getNextAccountId());
+        json.put("state", participant.getState().getCode());
+        return json;
+    }
+
+    static JSONObject shuffler(Shuffler shuffler, boolean includeParticipantState) {
+        JSONObject json = new JSONObject();
+        putAccount(json, "account", shuffler.getAccountId());
+        putAccount(json, "recipient", Account.getId(shuffler.getRecipientPublicKey()));
+        json.put("shufflingFullHash", Convert.toHexString(shuffler.getShufflingFullHash()));
+        json.put("shuffling", Long.toUnsignedString(Convert.fullHashToId(shuffler.getShufflingFullHash())));
+        if (shuffler.getFailedTransaction() != null) {
+            json.put("failedTransaction", unconfirmedTransaction(shuffler.getFailedTransaction()));
+            json.put("failureCause", shuffler.getFailureCause().getMessage());
+        }
+        if (includeParticipantState) {
+            ShufflingParticipant participant = ShufflingParticipant.getParticipant(Convert.fullHashToId(shuffler.getShufflingFullHash()), shuffler.getAccountId());
+            if (participant != null) {
+                json.put("participantState", participant.getState().getCode());
+            }
+        }
+        return json;
+    }
+
+    static JSONObject block(Block block, boolean includeTransactions, boolean includeExecutedPhased) {
         JSONObject json = new JSONObject();
         json.put("block", block.getStringId());
         json.put("height", block.getHeight());
@@ -337,6 +431,20 @@ final class JSONData {
             block.getTransactions().forEach(transaction -> transactions.add(transaction.getStringId()));
         }
         json.put("transactions", transactions);
+        if (includeExecutedPhased) {
+            JSONArray phasedTransactions = new JSONArray();
+            try (DbIterator<PhasingPoll.PhasingPollResult> phasingPollResults = PhasingPoll.getApproved(block.getHeight())) {
+                for (PhasingPoll.PhasingPollResult phasingPollResult : phasingPollResults) {
+                    long phasedTransactionId = phasingPollResult.getId();
+                    if (includeTransactions) {
+                        phasedTransactions.add(transaction(Nxt.getBlockchain().getTransaction(phasedTransactionId)));
+                    } else {
+                        phasedTransactions.add(Long.toUnsignedString(phasedTransactionId));
+                    }
+                }
+            }
+            json.put("executedPhasedTransactions", phasedTransactions);
+        }
         return json;
     }
 
@@ -412,6 +520,12 @@ final class JSONData {
         json.put("application", peer.getApplication());
         json.put("version", peer.getVersion());
         json.put("platform", peer.getPlatform());
+        if (peer.getApiPort() != 0) {
+            json.put("apiPort", peer.getApiPort());
+        }
+        if (peer.getApiSSLPort() != 0) {
+            json.put("apiSSLPort", peer.getApiSSLPort());
+        }
         json.put("blacklisted", peer.isBlacklisted());
         json.put("lastUpdated", peer.getLastUpdated());
         json.put("lastConnectAttempt", peer.getLastConnectAttempt());
@@ -421,6 +535,13 @@ final class JSONData {
         if (peer.isBlacklisted()) {
             json.put("blacklistingCause", peer.getBlacklistingCause());
         }
+        JSONArray servicesArray = new JSONArray();
+        for (Peer.Service service : Peer.Service.values()) {
+            if (peer.providesService(service)) {
+                servicesArray.add(service.name());
+            }
+        }
+        json.put("services", servicesArray);
         return json;
     }
 
@@ -507,7 +628,6 @@ final class JSONData {
         JSONObject json = new JSONObject();
         json.put("transaction", Long.toUnsignedString(poll.getId()));
         json.put("transactionFullHash", Convert.toHexString(poll.getFullHash()));
-        json.put("finished", poll.isFinished());
         json.put("finishHeight", poll.getFinishHeight());
         json.put("quorum", String.valueOf(poll.getQuorum()));
         putAccount(json, "account", poll.getAccountId());
@@ -518,9 +638,10 @@ final class JSONData {
             whitelistJson.add(whitelisted);
         }
         json.put("whitelist", whitelistJson);
-        if (poll.getLinkedFullHashes().length > 0) {
+        List<byte[]> linkedFullHashes = poll.getLinkedFullHashes();
+        if (linkedFullHashes.size() > 0) {
             JSONArray linkedFullHashesJSON = new JSONArray();
-            for (byte[] hash : poll.getLinkedFullHashes()) {
+            for (byte[] hash : linkedFullHashes) {
                 linkedFullHashesJSON.add(Convert.toHexString(hash));
             }
             json.put("linkedFullHashes", linkedFullHashesJSON);
@@ -529,14 +650,14 @@ final class JSONData {
             json.put("hashedSecret", Convert.toHexString(poll.getHashedSecret()));
         }
         putVoteWeighting(json, poll.getVoteWeighting());
-        if (poll.isFinished()) {
-            PhasingPoll.PhasingPollResult phasingPollResult = PhasingPoll.getResult(poll.getId());
-            if (phasingPollResult != null) {
-                json.put("approved", phasingPollResult.isApproved());
-                json.put("result", String.valueOf(phasingPollResult.getResult()));
-            }
+        PhasingPoll.PhasingPollResult phasingPollResult = PhasingPoll.getResult(poll.getId());
+        json.put("finished", phasingPollResult != null);
+        if (phasingPollResult != null) {
+            json.put("approved", phasingPollResult.isApproved());
+            json.put("result", String.valueOf(phasingPollResult.getResult()));
+            json.put("executionHeight", phasingPollResult.getHeight());
         } else if (countVotes) {
-            json.put("result", String.valueOf(poll.getResult()));
+            json.put("result", String.valueOf(poll.countVotes()));
         }
         return json;
     }
@@ -546,6 +667,7 @@ final class JSONData {
         json.put("transaction", Long.toUnsignedString(phasingPollResult.getId()));
         json.put("approved", phasingPollResult.isApproved());
         json.put("result", String.valueOf(phasingPollResult.getResult()));
+        json.put("executionHeight", phasingPollResult.getHeight());
         return json;
     }
 
@@ -563,6 +685,24 @@ final class JSONData {
         if (voteWeighting.getHoldingId() != 0) {
             json.put("holding", Long.toUnsignedString(voteWeighting.getHoldingId()));
         }
+    }
+
+    static JSONObject phasingOnly(AccountRestrictions.PhasingOnly phasingOnly) {
+        JSONObject json = new JSONObject();
+        putAccount(json, "account", phasingOnly.getAccountId());
+        json.put("quorum", String.valueOf(phasingOnly.getPhasingParams().getQuorum()));
+        JSONArray whitelistJson = new JSONArray();
+        for (long accountId : phasingOnly.getPhasingParams().getWhitelist()) {
+            JSONObject whitelisted = new JSONObject();
+            putAccount(whitelisted, "whitelisted", accountId);
+            whitelistJson.add(whitelisted);
+        }
+        json.put("whitelist", whitelistJson);
+        json.put("maxFees", String.valueOf(phasingOnly.getMaxFees()));
+        json.put("minDuration", phasingOnly.getMinDuration());
+        json.put("maxDuration", phasingOnly.getMaxDuration());
+        putVoteWeighting(json, phasingOnly.getPhasingParams().getVoteWeighting());
+        return json;
     }
 
     static JSONObject purchase(DigitalGoodsStore.Purchase purchase) {
@@ -646,7 +786,7 @@ final class JSONData {
         return json;
     }
 
-    static JSONObject expectedAssetTransfer(Transaction transaction) {
+    static JSONObject expectedAssetTransfer(Transaction transaction, boolean includeAssetInfo) {
         JSONObject json = new JSONObject();
         Attachment.ColoredCoinsAssetTransfer attachment = (Attachment.ColoredCoinsAssetTransfer)transaction.getAttachment();
         json.put("assetTransfer", transaction.getStringId());
@@ -654,7 +794,37 @@ final class JSONData {
         putAccount(json, "sender", transaction.getSenderId());
         putAccount(json, "recipient", transaction.getRecipientId());
         json.put("quantityQNT", String.valueOf(attachment.getQuantityQNT()));
-        putAssetInfo(json, attachment.getAssetId());
+        if (includeAssetInfo) {
+            putAssetInfo(json, attachment.getAssetId());
+        }
+        putExpectedTransaction(json, transaction);
+        return json;
+    }
+
+    static JSONObject assetDelete(AssetDelete assetDelete, boolean includeAssetInfo) {
+        JSONObject json = new JSONObject();
+        json.put("assetDelete", Long.toUnsignedString(assetDelete.getId()));
+        json.put("asset", Long.toUnsignedString(assetDelete.getAssetId()));
+        putAccount(json, "account", assetDelete.getAccountId());
+        json.put("quantityQNT", String.valueOf(assetDelete.getQuantityQNT()));
+        json.put("height", assetDelete.getHeight());
+        json.put("timestamp", assetDelete.getTimestamp());
+        if (includeAssetInfo) {
+            putAssetInfo(json, assetDelete.getAssetId());
+        }
+        return json;
+    }
+
+    static JSONObject expectedAssetDelete(Transaction transaction, boolean includeAssetInfo) {
+        JSONObject json = new JSONObject();
+        Attachment.ColoredCoinsAssetDelete attachment = (Attachment.ColoredCoinsAssetDelete)transaction.getAttachment();
+        json.put("assetDelete", transaction.getStringId());
+        json.put("asset", Long.toUnsignedString(attachment.getAssetId()));
+        putAccount(json, "account", transaction.getSenderId());
+        json.put("quantityQNT", String.valueOf(attachment.getQuantityQNT()));
+        if (includeAssetInfo) {
+            putAssetInfo(json, attachment.getAssetId());
+        }
         putExpectedTransaction(json, transaction);
         return json;
     }
@@ -674,7 +844,7 @@ final class JSONData {
         return json;
     }
 
-    static JSONObject expectedCurrencyTransfer(Transaction transaction) {
+    static JSONObject expectedCurrencyTransfer(Transaction transaction, boolean includeCurrencyInfo) {
         JSONObject json = new JSONObject();
         Attachment.MonetarySystemCurrencyTransfer attachment = (Attachment.MonetarySystemCurrencyTransfer)transaction.getAttachment();
         json.put("transfer", transaction.getStringId());
@@ -682,7 +852,9 @@ final class JSONData {
         putAccount(json, "sender", transaction.getSenderId());
         putAccount(json, "recipient", transaction.getRecipientId());
         json.put("units", String.valueOf(attachment.getUnits()));
-        putCurrencyInfo(json, attachment.getCurrencyId());
+        if (includeCurrencyInfo) {
+            putCurrencyInfo(json, attachment.getCurrencyId());
+        }
         putExpectedTransaction(json, transaction);
         return json;
     }
@@ -734,6 +906,10 @@ final class JSONData {
     }
 
     static JSONObject unconfirmedTransaction(Transaction transaction) {
+        return unconfirmedTransaction(transaction, null);
+    }
+
+    static JSONObject unconfirmedTransaction(Transaction transaction, Filter<Appendix> filter) {
         JSONObject json = new JSONObject();
         json.put("type", transaction.getType().getType());
         json.put("subtype", transaction.getType().getSubtype());
@@ -761,8 +937,14 @@ final class JSONData {
             json.put("transaction", transaction.getStringId());
         }
         JSONObject attachmentJSON = new JSONObject();
-        for (Appendix appendage : transaction.getAppendages(true)) {
-            attachmentJSON.putAll(appendage.getJSONObject());
+        if (filter == null) {
+            for (Appendix appendage : transaction.getAppendages(true)) {
+                attachmentJSON.putAll(appendage.getJSONObject());
+            }
+        } else {
+            for (Appendix appendage : transaction.getAppendages(filter, true)) {
+                attachmentJSON.putAll(appendage.getJSONObject());
+            }
         }
         if (! attachmentJSON.isEmpty()) {
             for (Map.Entry entry : (Iterable<Map.Entry>) attachmentJSON.entrySet()) {
@@ -784,7 +966,24 @@ final class JSONData {
     }
 
     static JSONObject transaction(Transaction transaction) {
-        JSONObject json = unconfirmedTransaction(transaction);
+        return transaction(transaction, false);
+    }
+
+    static JSONObject transaction(Transaction transaction, boolean includePhasingResult) {
+        JSONObject json = transaction(transaction, null);
+        if (includePhasingResult && transaction.getPhasing() != null) {
+            PhasingPoll.PhasingPollResult phasingPollResult = PhasingPoll.getResult(transaction.getId());
+            if (phasingPollResult != null) {
+                json.put("approved", phasingPollResult.isApproved());
+                json.put("result", String.valueOf(phasingPollResult.getResult()));
+                json.put("executionHeight", phasingPollResult.getHeight());
+            }
+        }
+        return json;
+    }
+
+    static JSONObject transaction(Transaction transaction, Filter<Appendix> filter) {
+        JSONObject json = unconfirmedTransaction(transaction, filter);
         json.put("block", Long.toUnsignedString(transaction.getBlockId()));
         json.put("confirmations", Nxt.getBlockchain().getHeight() - transaction.getHeight());
         json.put("blockTimestamp", transaction.getBlockTimestamp());
@@ -805,7 +1004,9 @@ final class JSONData {
     static JSONObject prunableMessage(PrunableMessage prunableMessage, long readerAccountId, String secretPhrase) {
         JSONObject json = new JSONObject();
         json.put("transaction", Long.toUnsignedString(prunableMessage.getId()));
-        json.put("isText", prunableMessage.isText());
+        if (prunableMessage.getMessage() == null || prunableMessage.getEncryptedData() == null) {
+            json.put("isText", prunableMessage.getMessage() != null ? prunableMessage.messageIsText() : prunableMessage.encryptedMessageIsText());
+        }
         putAccount(json, "sender", prunableMessage.getSenderId());
         if (prunableMessage.getRecipientId() != 0) {
             putAccount(json, "recipient", prunableMessage.getRecipientId());
@@ -815,21 +1016,24 @@ final class JSONData {
         EncryptedData encryptedData = prunableMessage.getEncryptedData();
         if (encryptedData != null) {
             json.put("encryptedMessage", encryptedData(prunableMessage.getEncryptedData()));
+            json.put("encryptedMessageIsText", prunableMessage.encryptedMessageIsText());
             if (secretPhrase != null) {
-                Account account = prunableMessage.getSenderId() == readerAccountId
-                        ? Account.getAccount(prunableMessage.getRecipientId()) : Account.getAccount(prunableMessage.getSenderId());
-                if (account != null) {
+                byte[] publicKey = prunableMessage.getSenderId() == readerAccountId
+                        ? Account.getPublicKey(prunableMessage.getRecipientId()) : Account.getPublicKey(prunableMessage.getSenderId());
+                if (publicKey != null) {
                     try {
-                        byte[] decrypted = account.decryptFrom(encryptedData, secretPhrase, prunableMessage.isCompressed());
-                        json.put("decryptedMessage", prunableMessage.isText() ? Convert.toString(decrypted) : Convert.toHexString(decrypted));
+                        byte[] decrypted = Account.decryptFrom(publicKey, encryptedData, secretPhrase, prunableMessage.isCompressed());
+                        json.put("decryptedMessage", Convert.toString(decrypted, prunableMessage.encryptedMessageIsText()));
                     } catch (RuntimeException e) {
                         putException(json, e, "Decryption failed");
                     }
                 }
             }
             json.put("isCompressed", prunableMessage.isCompressed());
-        } else {
-            json.put("message", prunableMessage.toString());
+        }
+        if (prunableMessage.getMessage() != null) {
+            json.put("message", Convert.toString(prunableMessage.getMessage(), prunableMessage.messageIsText()));
+            json.put("messageIsText", prunableMessage.messageIsText());
         }
         return json;
     }
@@ -913,6 +1117,29 @@ final class JSONData {
         if (transaction.getBlockId() != 0) { // those values may be wrong for unconfirmed transactions
             json.put("transactionHeight", transaction.getHeight());
             json.put("confirmations", Nxt.getBlockchain().getHeight() - transaction.getHeight());
+        }
+    }
+
+    static void ledgerEntry(JSONObject json, LedgerEntry entry, boolean includeTransactions) {
+        putAccount(json, "account", entry.getAccountId());
+        json.put("ledgerId", Long.toUnsignedString(entry.getLedgerId()));
+        json.put("block", Long.toUnsignedString(entry.getBlockId()));
+        json.put("height", entry.getHeight());
+        json.put("timestamp", entry.getTimestamp());
+        json.put("eventType", entry.getEvent().name());
+        json.put("event", Long.toUnsignedString(entry.getEventId()));
+        json.put("isTransactionEvent", entry.getEvent().isTransaction());
+        json.put("change", String.valueOf(entry.getChange()));
+        json.put("balance", String.valueOf(entry.getBalance()));
+        if (entry.getHolding() != null) {
+            json.put("holdingType", entry.getHolding().name());
+            if (entry.getHoldingId() != null) {
+                json.put("holding", Long.toUnsignedString(entry.getHoldingId()));
+            }
+        }
+        if (includeTransactions && entry.getEvent().isTransaction()) {
+            Transaction transaction = Nxt.getBlockchain().getTransaction(entry.getEventId());
+            json.put("transaction", JSONData.transaction(transaction));
         }
     }
 

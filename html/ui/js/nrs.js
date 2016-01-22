@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -22,9 +22,7 @@
  * @depends {3rdparty/jsbn2.js}
  * @depends {3rdparty/pako.js}
  * @depends {3rdparty/webdb.js}
- * @depends {3rdparty/ajaxmultiqueue.js}
  * @depends {3rdparty/growl.js}
- * @depends {3rdparty/zeroclipboard.js}
  * @depends {crypto/curve25519.js}
  * @depends {crypto/curve25519_.js}
  * @depends {crypto/passphrasegenerator.js}
@@ -68,6 +66,7 @@ var NRS = (function(NRS, $, undefined) {
 	NRS.isAccountForging = false;
 	NRS.isLeased = false;
 	NRS.needsAdminPassword = true;
+    NRS.upnpExternalAddress = null;
 
 	NRS.lastBlockHeight = 0;
 	NRS.downloadingBlockchain = false;
@@ -84,13 +83,7 @@ var NRS = (function(NRS, $, undefined) {
 	NRS.incoming = {};
 	NRS.setup = {};
 
-	if (!_checkDOMenabled()) {
-		NRS.hasLocalStorage = false;
-	} else {
-	NRS.hasLocalStorage = true;
-   }
-	
-	NRS.inApp = false;
+    NRS.hasLocalStorage = _checkDOMenabled();
 	NRS.appVersion = "";
 	NRS.appPlatform = "";
 	NRS.assetTableKeys = [];
@@ -107,6 +100,9 @@ var NRS = (function(NRS, $, undefined) {
 			var isOffline = false;
 			var peerPort = 0;
 			for (var key in response) {
+                if (!response.hasOwnProperty(key)) {
+                    continue;
+                }
 				if (key == "isTestnet") {
 					isTestnet = response[key];
 				}
@@ -119,8 +115,11 @@ var NRS = (function(NRS, $, undefined) {
 				if (key == "needsAdminPassword") {
 					NRS.needsAdminPassword = response[key];
 				}
+				if (key == "upnpExternalAddress") {
+                    NRS.upnpExternalAddress = response[key];
+				}
 			}
-			
+
 			if (!isTestnet) {
 				$(".testnet_only").hide();
 			} else {
@@ -132,11 +131,10 @@ var NRS = (function(NRS, $, undefined) {
 				$(".testnet_only, #testnet_login, #testnet_warning").show();
 			}
 			NRS.loadServerConstants();
-			NRS.loadTransactionTypeConstants();
 			NRS.initializePlugins();
             NRS.printEnvInfo();
 		});
-		
+
 		if (!NRS.server) {
 			var hostName = window.location.hostname.toLowerCase();
 			NRS.isLocalHost = hostName == "localhost" || hostName == "127.0.0.1" || NRS.isPrivateIP(hostName);
@@ -148,7 +146,8 @@ var NRS = (function(NRS, $, undefined) {
 		}
 
 		try {
-			window.localStorage;
+			//noinspection BadExpressionStatementJS
+            window.localStorage;
 		} catch (err) {
 			NRS.hasLocalStorage = false;
 		}
@@ -177,38 +176,6 @@ var NRS = (function(NRS, $, undefined) {
 		});
 
 		NRS.showLockscreen();
-
-		if (window.parent) {
-			var match = window.location.href.match(/\?app=?(win|mac|lin)?\-?([\d\.]+)?/i);
-
-			if (match) {
-				NRS.inApp = true;
-				if (match[1]) {
-					NRS.appPlatform = match[1];
-				}
-				if (match[2]) {
-					NRS.appVersion = match[2];
-				}
-
-				if (!NRS.appPlatform || NRS.appPlatform == "mac") {
-					var macVersion = navigator.userAgent.match(/OS X 10_([0-9]+)/i);
-					if (macVersion && macVersion[1]) {
-						macVersion = parseInt(macVersion[1]);
-
-						if (macVersion < 9) {
-							$(".modal").removeClass("fade");
-						}
-					}
-				}
-
-				$("#show_console").hide();
-
-				parent.postMessage("loaded", "*");
-
-				window.addEventListener("message", receiveMessage, false);
-			}
-		}
-
 		NRS.setStateInterval(30);
 
 		if (!NRS.isTestNet) {
@@ -216,7 +183,6 @@ var NRS = (function(NRS, $, undefined) {
 		}
 
 		NRS.allowLoginViaEnter();
-
 		NRS.automaticallyCheckRecipient();
 
 		$("#dashboard_table, #transactions_table").on("mouseenter", "td.confirmations", function() {
@@ -235,39 +201,23 @@ var NRS = (function(NRS, $, undefined) {
 				NRS.positionAssetSidebar();
 			}
 		});
-		
+		// Enable all static tooltip components
+		// tooltip components generated dynamically (for tables cells for example)
+		// has to be enabled by activating this code on the specific widget
 		$("[data-toggle='tooltip']").tooltip();
 
-		$("#dgs_search_account_top, #dgs_search_account_center").mask("NXT-****-****-****-*****", {
-			"unmask": false
-		});
-		
+		$("#dgs_search_account_center").mask("NXT-****-****-****-*****");
+
 		if (NRS.getUrlParameter("account")){
 			NRS.login(false,NRS.getUrlParameter("account"));
 		}
-
-		/*
-		$("#asset_exchange_search input[name=q]").addClear({
-			right: 0,
-			top: 4,
-			onClear: function(input) {
-				$("#asset_exchange_search").trigger("submit");
-			}
-		});
-
-		$("#id_search input[name=q], #alias_search input[name=q]").addClear({
-			right: 0,
-			top: 4
-		});*/
 	};
 
 	function _fix() {
 		var height = $(window).height() - $("body > .header").height();
-		//$(".wrapper").css("min-height", height + "px");
 		var content = $(".wrapper").height();
 
 		$(".content.content-stretch:visible").width($(".page:visible").width());
-
 		if (content > height) {
 			$(".left-side, html, body").css("min-height", content + "px");
 		} else {
@@ -279,13 +229,10 @@ var NRS = (function(NRS, $, undefined) {
 		if (seconds == stateIntervalSeconds && stateInterval) {
 			return;
 		}
-
 		if (stateInterval) {
 			clearInterval(stateInterval);
 		}
-
 		stateIntervalSeconds = seconds;
-
 		stateInterval = setInterval(function() {
 			NRS.getState();
 			NRS.updateForgingStatus();
@@ -298,7 +245,7 @@ var NRS = (function(NRS, $, undefined) {
 		NRS.sendRequest("getBlockchainStatus", {}, function(response) {
 			if (response.errorCode) {
 				NRS.serverConnect = false;
-				//todo
+                $.growl($.t("server_connection_error") + " " + response.errorDescription);
 			} else {
 				var firstTime = !("lastBlock" in NRS.state);
 				var previousLastBlock = (firstTime ? "0" : NRS.state.lastBlock);
@@ -386,13 +333,13 @@ var NRS = (function(NRS, $, undefined) {
 
 		$(".content-header h1").find(".loading_dots").remove();
 
-		if ($(this).attr("id") && $(this).attr("id") == "logo") {
-			var $newActiveA = $("#dashboard_link a");
+        var $newActiveA;
+        if ($(this).attr("id") && $(this).attr("id") == "logo") {
+            $newActiveA = $("#dashboard_link").find("a");
 		} else {
-			var $newActiveA = $(this);
+			$newActiveA = $(this);
 		}
 		var $newActivePageLi = $newActiveA.closest("li.treeview");
-		var $currentActivePageLi = $("ul.sidebar-menu > li.active");
 
 		$("ul.sidebar-menu > li.active").each(function(key, elem) {
 			if ($newActivePageLi.attr("id") != $(elem).attr("id")) {
@@ -423,19 +370,21 @@ var NRS = (function(NRS, $, undefined) {
 		if (NRS.pages[page]) {
 			NRS.pageLoading();
 			NRS.resetNotificationState(page);
-			if (data) {
+            var callback;
+            if (data) {
 				if (data.callback) {
-					var callback = data.callback;	
+					callback = data.callback;
 				} else {
-					var callback = data;
+					callback = data;
 				}
 			} else {
-				var callback = undefined;
+				callback = undefined;
 			}
-			if (data && data.subpage) {
-				var subpage = data.subpage;
+            var subpage;
+            if (data && data.subpage) {
+                subpage = data.subpage;
 			} else {
-				var subpage = undefined;
+				subpage = undefined;
 			}
 			NRS.pages[page](callback, subpage);
 		}
@@ -503,12 +452,14 @@ var NRS = (function(NRS, $, undefined) {
 		}
 
 		if (callback) {
-			callback();
+			try {
+                callback();
+            } catch(e) { /* ignore since sometimes callback is not a function */ }
 		}
 	};
 
-	NRS.addPagination = function(section) {
-		var firstStartNr = 1;
+NRS.addPagination = function () {
+        var firstStartNr = 1;
 		var firstEndNr = NRS.itemsPerPage;
 		var currentStartNr = (NRS.pageNumber-1) * NRS.itemsPerPage + 1;
 		var currentEndNr = NRS.pageNumber * NRS.itemsPerPage;
@@ -544,7 +495,7 @@ var NRS = (function(NRS, $, undefined) {
 		}
 
 		prevHTML += '</span>';
-		firstHTML += '</span>'; 
+		firstHTML += '</span>';
 		currentHTML += '</span>';
 		nextHTML += '</span>';
 
@@ -556,7 +507,7 @@ var NRS = (function(NRS, $, undefined) {
 		}
 	};
 
-	$(".data-pagination").on("click", "a", function(e) {
+	$(document).on("click", ".data-pagination a", function(e) {
 		e.preventDefault();
 
 		NRS.goToPageNumber($(this).data("page"));
@@ -573,14 +524,14 @@ var NRS = (function(NRS, $, undefined) {
 		NRS.pages[NRS.currentPage]();
 	};
 
-		
+
 
 	NRS.initUserDBSuccess = function() {
 		NRS.database.select("data", [{
 			"id": "asset_exchange_version"
 		}], function(error, result) {
 			if (!result || !result.length) {
-				NRS.database.delete("assets", [], function(error, affected) {
+				NRS.database.delete("assets", [], function(error) {
 					if (!error) {
 						NRS.database.insert("data", {
 							"id": "asset_exchange_version",
@@ -611,7 +562,7 @@ var NRS = (function(NRS, $, undefined) {
 		NRS.updateNotifications();
 		NRS.setUnconfirmedNotifications();
 		NRS.setPhasingNotifications();
-	}
+	};
 
 	NRS.initUserDBWithLegacyData = function() {
 		var legacyTables = ["contacts", "assets", "data"];
@@ -623,7 +574,7 @@ var NRS = (function(NRS, $, undefined) {
 			});
 		});
 		setTimeout(function(){ NRS.initUserDBSuccess(); }, 1000);
-	}
+	};
 
 	NRS.initUserDBFail = function() {
 		NRS.database = null;
@@ -632,10 +583,10 @@ var NRS = (function(NRS, $, undefined) {
 		NRS.updateNotifications();
 		NRS.setUnconfirmedNotifications();
 		NRS.setPhasingNotifications();
-	}
+	};
 
 	NRS.createLegacyDatabase = function() {
-		var schema = {}
+		var schema = {};
 		var versionLegacyDB = 2;
 
 		// Legacy DB before switching to account based DBs, leave schema as is
@@ -650,7 +601,7 @@ var NRS = (function(NRS, $, undefined) {
 			account: "VARCHAR(25)",
 			accountRS: "VARCHAR(25)",
 			description: "TEXT"
-		}
+		};
 		schema["assets"] = {
 			account: "VARCHAR(25)",
 			accountRS: "VARCHAR(25)",
@@ -663,17 +614,17 @@ var NRS = (function(NRS, $, undefined) {
 			decimals: "NUMBER",
 			quantityQNT: "VARCHAR(15)",
 			groupName: "VARCHAR(30) COLLATE NOCASE"
-		}
+		};
 		schema["data"] = {
 			id: {
 				"primary": true,
 				"type": "VARCHAR(40)"
 			},
 			contents: "TEXT"
-		}
-		if (versionLegacyDB = NRS.constants.DB_VERSION) {
+		};
+		if (versionLegacyDB == NRS.constants.DB_VERSION) {
 			try {
-				NRS.legacyDatabase = new WebDB("NRS_USER_DB", schema, versionLegacyDB, 4, function(error, db) {
+				NRS.legacyDatabase = new WebDB("NRS_USER_DB", schema, versionLegacyDB, 4, function(error) {
 					if (!error) {
 						NRS.legacyDatabase.select("data", [{
 							"id": "settings"
@@ -686,12 +637,12 @@ var NRS = (function(NRS, $, undefined) {
 				});
 			} catch (err) {
                 NRS.logConsole("error creating database " + err.message);
-			}		
+			}
 		}
 	};
 
 	NRS.createDatabase = function(dbName) {
-		var schema = {}
+		var schema = {};
 
 		schema["contacts"] = {
 			id: {
@@ -704,7 +655,7 @@ var NRS = (function(NRS, $, undefined) {
 			account: "VARCHAR(25)",
 			accountRS: "VARCHAR(25)",
 			description: "TEXT"
-		}
+		};
 		schema["assets"] = {
 			account: "VARCHAR(25)",
 			accountRS: "VARCHAR(25)",
@@ -717,7 +668,7 @@ var NRS = (function(NRS, $, undefined) {
 			decimals: "NUMBER",
 			quantityQNT: "VARCHAR(15)",
 			groupName: "VARCHAR(30) COLLATE NOCASE"
-		}
+		};
 		schema["polls"] = {
 			account: "VARCHAR(25)",
 			accountRS: "VARCHAR(25)",
@@ -725,21 +676,21 @@ var NRS = (function(NRS, $, undefined) {
 			description: "TEXT",
 			poll: "VARCHAR(25)",
 			finishHeight: "VARCHAR(25)"
-		}
+		};
 		schema["data"] = {
 			id: {
 				"primary": true,
 				"type": "VARCHAR(40)"
 			},
 			contents: "TEXT"
-		}
+		};
 
 		NRS.assetTableKeys = ["account", "accountRS", "asset", "description", "name", "position", "decimals", "quantityQNT", "groupName"];
 		NRS.pollsTableKeys = ["account", "accountRS", "poll", "description", "name", "finishHeight"];
 
 
 		try {
-			NRS.database = new WebDB(dbName, schema, NRS.constants.DB_VERSION, 4, function(error, db) {
+			NRS.database = new WebDB(dbName, schema, NRS.constants.DB_VERSION, 4, function(error) {
 				if (!error) {
 					NRS.database.select("data", [{
 						"id": "settings"
@@ -764,29 +715,34 @@ var NRS = (function(NRS, $, undefined) {
 			NRS.initUserDBFail();
 		}
 	};
-	
+
 	/* Display connected state in Sidebar */
 	NRS.checkConnected = function() {
 		NRS.sendRequest("getPeers+", {
 			"state": "CONNECTED"
 		}, function(response) {
-			if (response.peers && response.peers.length) {
+            var connectedIndicator = $("#connected_indicator");
+            if (response.peers && response.peers.length) {
 				NRS.peerConnect = true;
-				$("#connected_indicator").addClass("connected");
-				$("#connected_indicator span").html($.t("Connected")).attr("data-i18n", "connected");
-				$("#connected_indicator").show();
+				connectedIndicator.addClass("connected");
+                connectedIndicator.find("span").html($.t("Connected")).attr("data-i18n", "connected");
+				connectedIndicator.show();
 			} else {
 				NRS.peerConnect = false;
-				$("#connected_indicator").removeClass("connected");
-				$("#connected_indicator span").html($.t("Not Connected")).attr("data-i18n", "not_connected");
-				$("#connected_indicator").show();
+				connectedIndicator.removeClass("connected");
+                connectedIndicator.find("span").html($.t("Not Connected")).attr("data-i18n", "not_connected");
+				connectedIndicator.show();
 			}
 		});
 	};
 
 	NRS.getAccountInfo = function(firstRun, callback) {
 		NRS.sendRequest("getAccount", {
-			"account": NRS.account
+			"account": NRS.account,
+			"includeAssets": true,
+			"includeCurrencies": true,
+			"includeLessors": true,
+			"includeEffectiveBalance": true
 		}, function(response) {
 			var previousAccountInfo = NRS.accountInfo;
 
@@ -794,14 +750,15 @@ var NRS = (function(NRS, $, undefined) {
 
 			if (response.errorCode) {
 				$("#account_balance, #account_balance_sidebar, #account_nr_assets, #account_assets_balance, #account_currencies_balance, #account_nr_currencies, #account_purchase_count, #account_pending_sale_count, #account_completed_sale_count, #account_message_count, #account_alias_count").html("0");
-				
+
 				if (NRS.accountInfo.errorCode == 5) {
 					if (NRS.downloadingBlockchain) {
 						if (NRS.newlyCreatedAccount) {
-							$("#dashboard_message").addClass("alert-success").removeClass("alert-danger").html($.t("status_new_account", {
-								"account_id": String(NRS.accountRS).escapeHTML(),
-								"public_key": String(NRS.publicKey).escapeHTML()
-							}) + "<br /><br />" + $.t("status_blockchain_downloading")).show();
+                            $("#dashboard_message").addClass("alert-success").removeClass("alert-danger").html($.t("status_new_account", {
+                                "account_id": String(NRS.accountRS).escapeHTML(),
+                                "public_key": String(NRS.publicKey).escapeHTML()
+                            }) + "<br/><br/>" + $.t("status_blockchain_downloading") +
+                            "<br/><br/>" + NRS.getFundAccountLink()).show();
 						} else {
 							$("#dashboard_message").addClass("alert-success").removeClass("alert-danger").html($.t("status_blockchain_downloading")).show();
 						}
@@ -816,7 +773,7 @@ var NRS = (function(NRS, $, undefined) {
                             $("#dashboard_message").addClass("alert-success").removeClass("alert-danger").html($.t("status_new_account", {
                                 "account_id": String(NRS.accountRS).escapeHTML(),
                                 "public_key": String(NRS.publicKey).escapeHTML()
-                            })).show();
+                            }) + "<br/><br/>" + NRS.getFundAccountLink()).show();
                         }
 					}
 				} else {
@@ -850,13 +807,10 @@ var NRS = (function(NRS, $, undefined) {
 					}], function(error, asset_balance) {
 						if (asset_balance && asset_balance.length) {
 							var previous_balances = asset_balance[0].contents;
-
 							if (!NRS.accountInfo.assetBalances) {
 								NRS.accountInfo.assetBalances = [];
 							}
-
 							var current_balances = JSON.stringify(NRS.accountInfo.assetBalances);
-
 							if (previous_balances != current_balances) {
 								if (previous_balances != "undefined" && typeof previous_balances != "undefined") {
 									previous_balances = JSON.parse(previous_balances);
@@ -890,12 +844,12 @@ var NRS = (function(NRS, $, undefined) {
 
 				$("#account_balance, #account_balance_sidebar").html(NRS.formatStyledAmount(response.unconfirmedBalanceNQT));
 				$("#account_forged_balance").html(NRS.formatStyledAmount(response.forgedBalanceNQT));
-
+                var i;
 				if (response.assetBalances) {
                     var assets = [];
                     var assetBalances = response.assetBalances;
                     var assetBalancesMap = {};
-                    for (var i = 0; i < assetBalances.length; i++) {
+                    for (i = 0; i < assetBalances.length; i++) {
                         if (assetBalances[i].balanceQNT != "0") {
                             assets.push(assetBalances[i].asset);
                             assetBalancesMap[assetBalances[i].asset] = assetBalances[i].balanceQNT;
@@ -926,7 +880,7 @@ var NRS = (function(NRS, $, undefined) {
                     var currencies = [];
                     var currencyBalances = response.accountCurrencies;
                     var currencyBalancesMap = {};
-                    for (var i = 0; i < currencyBalances.length; i++) {
+                    for (i = 0; i < currencyBalances.length; i++) {
                         if (currencyBalances[i].units != "0") {
                             currencies.push(currencyBalances[i].currency);
                             currencyBalancesMap[currencyBalances[i].currency] = currencyBalances[i].units;
@@ -969,10 +923,10 @@ var NRS = (function(NRS, $, undefined) {
 					} else {
 						$("#account_message_count").empty().append("0");
 					}
-				});	
-				
+				});
+
 				/***  ******************   ***/
-				
+
 				NRS.sendRequest("getAliasCount+", {
 					"account":NRS.account
 				}, function(response) {
@@ -980,7 +934,7 @@ var NRS = (function(NRS, $, undefined) {
 						$("#account_alias_count").empty().append(response.numberOfAliases);
 					}
 				});
-				
+
 				NRS.sendRequest("getDGSPurchaseCount+", {
 					"buyer": NRS.account
 				}, function(response) {
@@ -1008,14 +962,13 @@ var NRS = (function(NRS, $, undefined) {
 					}
 				});
 
+                var leasingChange = false;
 				if (NRS.lastBlockHeight) {
 					var isLeased = NRS.lastBlockHeight >= NRS.accountInfo.currentLeasingHeightFrom;
 					if (isLeased != NRS.IsLeased) {
-						var leasingChange = true;
+						leasingChange = true;
 						NRS.isLeased = isLeased;
 					}
-				} else {
-					var leasingChange = false;
 				}
 
 				if (leasingChange ||
@@ -1026,8 +979,10 @@ var NRS = (function(NRS, $, undefined) {
 					NRS.updateAccountLeasingStatus();
 				}
 
+				NRS.updateAccountControlStatus();
+
 				if (response.name) {
-					$("#account_name").html(response.name.escapeHTML()).removeAttr("data-i18n");
+					$("#account_name").html(NRS.addEllipsis(response.name.escapeHTML(), 10)).removeAttr("data-i18n");
 				}
 			}
 
@@ -1079,7 +1034,8 @@ var NRS = (function(NRS, $, undefined) {
 		}
 
 		//no reed solomon available? do it myself? todo
-		if (NRS.accountInfo.lessors) {
+        var accountLessorTable = $("#account_lessor_table");
+        if (NRS.accountInfo.lessors) {
 			if (accountLeasingLabel) {
 				accountLeasingLabel += ", ";
 				accountLeasingStatus += "<br /><br />";
@@ -1109,18 +1065,18 @@ var NRS = (function(NRS, $, undefined) {
 					nextTooltip = "Account " + NRS.getAccountTitle(lessorInfo.nextLesseeRS) +" from block " + lessorInfo.nextHeightFrom + " to block " + lessorInfo.nextHeightTo;
 				}
 				rows += "<tr>" +
-					"<td><a href='#' data-user='" + String(lessor).escapeHTML() + "' class='show_account_modal_action'>" + NRS.getAccountTitle(lessor) + "</a></td>" +
+					"<td>" + NRS.getAccountLink({ lessorRS: lessor }, "lessor") + "</td>" +
 					"<td>" + String(lessorInfo.effectiveBalanceNXT).escapeHTML() + "</td>" +
 					"<td><label>" + String(blocksLeft).escapeHTML() + " <i class='fa fa-question-circle show_popover' data-toggle='tooltip' title='" + blocksLeftTooltip + "' data-placement='right' style='color:#4CAA6E'></i></label></td>" +
 					"<td><label>" + String(nextLessee).escapeHTML() + " <i class='fa fa-question-circle show_popover' data-toggle='tooltip' title='" + nextTooltip + "' data-placement='right' style='color:#4CAA6E'></i></label></td>" +
 				"</tr>";
 			}
 
-			$("#account_lessor_table tbody").empty().append(rows);
+			accountLessorTable.find("tbody").empty().append(rows);
 			$("#account_lessor_container").show();
-			$("#account_lessor_table [data-toggle='tooltip']").tooltip();
+			accountLessorTable.find("[data-toggle='tooltip']").tooltip();
 		} else {
-			$("#account_lessor_table tbody").empty();
+			accountLessorTable.find("tbody").empty();
 			$("#account_lessor_container").hide();
 		}
 
@@ -1137,45 +1093,104 @@ var NRS = (function(NRS, $, undefined) {
 		}
 	};
 
+	NRS.updateAccountControlStatus = function() {
+		var onNoPhasingOnly = function() {
+			$("#setup_mandatory_approval").show();
+			$("#mandatory_approval_details").hide();
+			delete NRS.accountInfo.phasingOnly;
+		};
+		if (NRS.accountInfo.accountControls && $.inArray('PHASING_ONLY', NRS.accountInfo.accountControls) > -1) {
+			NRS.sendRequest("getPhasingOnlyControl", {
+				"account": NRS.account
+			}, function (response) {
+				if (response && response.votingModel >= 0) {
+					$("#setup_mandatory_approval").hide();
+					$("#mandatory_approval_details").show();
+
+					NRS.accountInfo.phasingOnly = response;
+					var infoTable = $("#mandatory_approval_info_table");
+					infoTable.find("tbody").empty();
+					var data = {};
+					var params = NRS.phasingControlObjectToPhasingParams(response);
+					params.phasingWhitelist = params.phasingWhitelisted;
+					NRS.getPhasingDetails(data, params);
+					delete data.full_hash_formatted_html;
+					if (response.minDuration) {
+						data.minimum_duration_short = response.minDuration;
+					}
+
+					if (response.maxDuration) {
+						data.maximum_duration_short = response.maxDuration;
+					}
+
+					if (response.maxFees) {
+						data.maximum_fees = NRS.convertToNXT(response.maxFees);
+					}
+
+					infoTable.find("tbody").append(NRS.createInfoTable(data));
+					infoTable.show();
+				} else {
+					onNoPhasingOnly();
+				}
+
+			});
+
+		} else {
+			onNoPhasingOnly();
+		}
+	};
+
 	NRS.checkAssetDifferences = function(current_balances, previous_balances) {
 		var current_balances_ = {};
 		var previous_balances_ = {};
 
 		if (previous_balances && previous_balances.length) {
 			for (var k in previous_balances) {
+                if (!previous_balances.hasOwnProperty(k)) {
+                    continue;
+                }
 				previous_balances_[previous_balances[k].asset] = previous_balances[k].balanceQNT;
 			}
 		}
 
 		if (current_balances && current_balances.length) {
-			for (var k in current_balances) {
+			for (k in current_balances) {
+                if (!current_balances.hasOwnProperty(k)) {
+                    continue;
+                }
 				current_balances_[current_balances[k].asset] = current_balances[k].balanceQNT;
 			}
 		}
 
 		var diff = {};
 
-		for (var k in previous_balances_) {
+		for (k in previous_balances_) {
+            if (!previous_balances_.hasOwnProperty(k)) {
+                continue;
+            }
 			if (!(k in current_balances_)) {
 				diff[k] = "-" + previous_balances_[k];
 			} else if (previous_balances_[k] !== current_balances_[k]) {
-				var change = (new BigInteger(current_balances_[k]).subtract(new BigInteger(previous_balances_[k]))).toString();
-				diff[k] = change;
+                diff[k] = (new BigInteger(current_balances_[k]).subtract(new BigInteger(previous_balances_[k]))).toString();
 			}
 		}
 
 		for (k in current_balances_) {
+            if (!current_balances_.hasOwnProperty(k)) {
+                continue;
+            }
 			if (!(k in previous_balances_)) {
 				diff[k] = current_balances_[k]; // property is new
 			}
 		}
 
 		var nr = Object.keys(diff).length;
-
 		if (nr == 0) {
-			return;
-		} else if (nr <= 3) {
+        } else if (nr <= 3) {
 			for (k in diff) {
+                if (!diff.hasOwnProperty(k)) {
+                    continue;
+                }
 				NRS.sendRequest("getAsset", {
 					"asset": k,
 					"_extra": {
@@ -1188,9 +1203,9 @@ var NRS = (function(NRS, $, undefined) {
 					}
 					asset.difference = input["_extra"].difference;
 					asset.asset = input["_extra"].asset;
-
+                    var quantity;
 					if (asset.difference.charAt(0) != "-") {
-						var quantity = NRS.formatQuantity(asset.difference, asset.decimals)
+						quantity = NRS.formatQuantity(asset.difference, asset.decimals);
 
 						if (quantity != "0") {
 							if (parseInt(quantity) == 1) {
@@ -1211,9 +1226,7 @@ var NRS = (function(NRS, $, undefined) {
 						}
 					} else {
 						asset.difference = asset.difference.substring(1);
-
-						var quantity = NRS.formatQuantity(asset.difference, asset.decimals)
-
+						quantity = NRS.formatQuantity(asset.difference, asset.decimals);
 						if (quantity != "0") {
 							if (parseInt(quantity) == 1) {
 								$.growl($.t("you_sold_assets", {
@@ -1228,7 +1241,7 @@ var NRS = (function(NRS, $, undefined) {
 								}), {
 									"type": "success"
 								});
-							} 
+							}
 							NRS.loadAssetExchangeSidebar();
 						}
 					}
@@ -1243,18 +1256,17 @@ var NRS = (function(NRS, $, undefined) {
 
 	NRS.checkLocationHash = function(password) {
 		if (window.location.hash) {
-			var hash = window.location.hash.replace("#", "").split(":")
+			var hash = window.location.hash.replace("#", "").split(":");
 
 			if (hash.length == 2) {
-				if (hash[0] == "message") {
-					var $modal = $("#send_message_modal");
+                var $modal = "";
+                if (hash[0] == "message") {
+					$modal = $("#send_message_modal");
 				} else if (hash[0] == "send") {
-					var $modal = $("#send_money_modal");
+					$modal = $("#send_money_modal");
 				} else if (hash[0] == "asset") {
 					NRS.goToAsset(hash[1]);
 					return;
-				} else {
-					var $modal = "";
 				}
 
 				if ($modal) {
@@ -1273,17 +1285,18 @@ var NRS = (function(NRS, $, undefined) {
 
 	NRS.updateBlockchainDownloadProgress = function() {
 		var lastNumBlocks = 5000;
-		$('#downloading_blockchain .last_num_blocks').html($.t('last_num_blocks', { "blocks": lastNumBlocks }));
-		
+        var downloadingBlockchain = $('#downloading_blockchain');
+        downloadingBlockchain.find('.last_num_blocks').html($.t('last_num_blocks', { "blocks": lastNumBlocks }));
+
 		if (!NRS.serverConnect || !NRS.peerConnect) {
-			$("#downloading_blockchain .db_active").hide();
-			$("#downloading_blockchain .db_halted").show();
+			downloadingBlockchain.find(".db_active").hide();
+			downloadingBlockchain.find(".db_halted").show();
 		} else {
-			$("#downloading_blockchain .db_halted").hide();
-			$("#downloading_blockchain .db_active").show();
+			downloadingBlockchain.find(".db_halted").hide();
+			downloadingBlockchain.find(".db_active").show();
 
 			var percentageTotal = 0;
-			var blocksLeft = undefined;
+			var blocksLeft;
 			var percentageLast = 0;
 			if (NRS.state.lastBlockchainFeederHeight && NRS.state.numberOfBlocks <= NRS.state.lastBlockchainFeederHeight) {
 				percentageTotal = parseInt(Math.round((NRS.state.numberOfBlocks / NRS.state.lastBlockchainFeederHeight) * 100), 10);
@@ -1293,26 +1306,26 @@ var NRS = (function(NRS, $, undefined) {
 				}
 			}
 			if (!blocksLeft || blocksLeft < parseInt(lastNumBlocks / 2)) {
-				$("#downloading_blockchain .db_progress_total").hide();
+				downloadingBlockchain.find(".db_progress_total").hide();
 			} else {
-				$("#downloading_blockchain .db_progress_total").show();
-				$("#downloading_blockchain .db_progress_total .progress-bar").css("width", percentageTotal + "%");
-				$("#downloading_blockchain .db_progress_total .sr-only").html($.t("percent_complete", {
+				downloadingBlockchain.find(".db_progress_total").show();
+				downloadingBlockchain.find(".db_progress_total .progress-bar").css("width", percentageTotal + "%");
+				downloadingBlockchain.find(".db_progress_total .sr-only").html($.t("percent_complete", {
 					"percent": percentageTotal
 				}));
 			}
 			if (!blocksLeft || blocksLeft >= (lastNumBlocks * 2) || NRS.state.lastBlockchainFeederHeight <= lastNumBlocks) {
-				$("#downloading_blockchain .db_progress_last").hide();
+				downloadingBlockchain.find(".db_progress_last").hide();
 			} else {
-				$("#downloading_blockchain .db_progress_last").show();
-				$("#downloading_blockchain .db_progress_last .progress-bar").css("width", percentageLast + "%");
-				$("#downloading_blockchain .db_progress_last .sr-only").html($.t("percent_complete", {
+				downloadingBlockchain.find(".db_progress_last").show();
+				downloadingBlockchain.find(".db_progress_last .progress-bar").css("width", percentageLast + "%");
+				downloadingBlockchain.find(".db_progress_last .sr-only").html($.t("percent_complete", {
 					"percent": percentageLast
 				}));
 			}
 			if (blocksLeft) {
-				$("#downloading_blockchain .blocks_left_outer").show();
-				$("#downloading_blockchain .blocks_left").html($.t("blocks_left", { "numBlocks": blocksLeft }));
+				downloadingBlockchain.find(".blocks_left_outer").show();
+				downloadingBlockchain.find(".blocks_left").html($.t("blocks_left", { "numBlocks": blocksLeft }));
 			}
 		}
 	};
@@ -1359,7 +1372,7 @@ var NRS = (function(NRS, $, undefined) {
 	$("#id_search").on("submit", function(e) {
 		e.preventDefault();
 
-		var id = $.trim($("#id_search input[name=q]").val());
+		var id = $.trim($("#id_search").find("input[name=q]").val());
 
 		if (/NXT\-/i.test(id)) {
 			NRS.sendRequest("getAccount", {
@@ -1422,23 +1435,17 @@ $(document).ready(function() {
 	NRS.init();
 });
 
-function receiveMessage(event) {
-	if (event.origin != "file://") {
-		return;
-	}
-	//parent.postMessage("from iframe", "file://");
-}
-
 function _checkDOMenabled() {
-	var storage;
-	var fail;
-	var uid;
-	try {
-	  uid = new Date;
-	  (storage = window.localStorage).setItem(uid, uid);
-	  fail = storage.getItem(uid) != uid;
-	  storage.removeItem(uid);
-	  fail && (storage = false);
-	} catch (exception) {}
-	return storage;
+    var storage;
+    var fail;
+    var uid;
+    try {
+        uid = String(new Date());
+        (storage = window.localStorage).setItem(uid, uid);
+        fail = storage.getItem(uid) != uid;
+        storage.removeItem(uid);
+        fail && (storage = false);
+    } catch (exception) {
+    }
+    return storage;
 }

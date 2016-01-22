@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -17,7 +17,6 @@
 package nxt.http;
 
 import nxt.Account;
-import nxt.Currency;
 import nxt.NxtException;
 import nxt.db.DbIterator;
 import org.json.simple.JSONArray;
@@ -37,13 +36,13 @@ public final class GetCurrencyAccounts extends APIServlet.APIRequestHandler {
     @Override
     JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
 
-        Currency currency = ParameterParser.getCurrency(req);
+        long currencyId = ParameterParser.getUnsignedLong(req, "currency", true);
         int firstIndex = ParameterParser.getFirstIndex(req);
         int lastIndex = ParameterParser.getLastIndex(req);
         int height = ParameterParser.getHeight(req);
 
         JSONArray accountCurrencies = new JSONArray();
-        try (DbIterator<Account.AccountCurrency> iterator = currency.getAccounts(height, firstIndex, lastIndex)) {
+        try (DbIterator<Account.AccountCurrency> iterator = Account.getCurrencyAccounts(currencyId, height, firstIndex, lastIndex)) {
             while (iterator.hasNext()) {
                 Account.AccountCurrency accountCurrency = iterator.next();
                 accountCurrencies.add(JSONData.accountCurrency(accountCurrency, true, false));

@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -16,12 +16,14 @@
 
 package nxt;
 
+import nxt.AccountLedger.LedgerEvent;
 import nxt.db.DbClause;
 import nxt.db.DbIterator;
 import nxt.db.DbKey;
 import nxt.db.VersionedEntityDbTable;
 import nxt.util.Listener;
 import nxt.util.Listeners;
+import nxt.util.Logger;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -132,7 +134,8 @@ public final class CurrencyMint {
         return counter;
     }
 
-    static void mintCurrency(final Account account, final Attachment.MonetarySystemCurrencyMinting attachment) {
+    static void mintCurrency(LedgerEvent event, long eventId, final Account account,
+                             final Attachment.MonetarySystemCurrencyMinting attachment) {
         CurrencyMint currencyMint = currencyMintTable.get(currencyMintDbKeyFactory.newKey(attachment.getCurrencyId(), account.getId()));
         if (currencyMint != null && attachment.getCounter() <= currencyMint.getCounter()) {
             return;
@@ -146,9 +149,11 @@ public final class CurrencyMint {
             }
             currencyMintTable.insert(currencyMint);
             long units = Math.min(attachment.getUnits(), currency.getMaxSupply() - currency.getCurrentSupply());
-            account.addToCurrencyAndUnconfirmedCurrencyUnits(currency.getId(), units);
+            account.addToCurrencyAndUnconfirmedCurrencyUnits(event, eventId, currency.getId(), units);
             currency.increaseSupply(units);
             listeners.notify(new Mint(account.getId(), currency.getId(), units), Event.CURRENCY_MINT);
+        } else {
+            Logger.logDebugMessage("Currency mint hash no longer meets target %s", attachment.getJSONObject().toJSONString());
         }
     }
 

@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -17,12 +17,13 @@
 /**
  * @depends {nrs.js}
  */
-var NRS = (function (NRS, $, undefined) {
+var NRS = (function (NRS, $) {
     NRS.constants = {
         'DB_VERSION': 2,
 
         'PLUGIN_VERSION': 1,
         'MAX_SHORT_JAVA': 32767,
+        'MAX_UNSIGNED_SHORT_JAVA': 65535,
         'MAX_INT_JAVA': 2147483647,
         'MIN_PRUNABLE_MESSAGE_LENGTH': 28,
 
@@ -55,6 +56,7 @@ var NRS = (function (NRS, $, undefined) {
         "HASH_ALGORITHMS": {},
         "PHASING_HASH_ALGORITHMS": {},
         "MINTING_HASH_ALGORITHMS": {},
+        "REQUEST_TYPES": {},
 
         'SERVER': {},
         'MAX_TAGGED_DATA_DATA_LENGTH': 0,
@@ -93,8 +95,12 @@ var NRS = (function (NRS, $, undefined) {
                 NRS.constants.GENESIS = response.genesisAccountId;
                 NRS.constants.GENESIS_RS = NRS.convertNumericToRSAccountFormat(response.genesisAccountId);
                 NRS.constants.EPOCH_BEGINNING = response.epochBeginning;
+                NRS.constants.REQUEST_TYPES = response.requestTypes;
+                NRS.constants.SHUFFLING_STAGES = response.shufflingStages;
+                NRS.constants.SHUFFLING_PARTICIPANTS_STATES = response.shufflingParticipantStates;
+                NRS.loadTransactionTypeConstants(response);
             }
-        });
+        }, false);
     };
 
     function getKeyByValue(map, value) {
@@ -128,12 +134,38 @@ var NRS = (function (NRS, $, undefined) {
         return getKeyByValue(NRS.constants.HASH_ALGORITHMS, code);
     };
 
-    // TODO receive from the server list of APIs which are safe for offline execution
-    NRS.isOfflineSafeRequest = function(requestType) {
-        return requestType == "addPeer" || requestType == "blacklistPeer" || requestType == "signTransaction" ||
-            requestType == "decodeToken" || requestType == "generateToken" ||
-            requestType == "decodeFileToken" || requestType == "generateFileToken" || requestType == "hash" ||
-            requestType == "parseTransaction" || requestType == "calculateFullHash";
+    NRS.getShufflingStage = function (code) {
+        return getKeyByValue(NRS.constants.SHUFFLING_STAGES, code);
+    };
+
+    NRS.getShufflingParticipantState = function (code) {
+        return getKeyByValue(NRS.constants.SHUFFLING_PARTICIPANTS_STATES, code);
+    };
+
+    NRS.isRequireBlockchain = function(requestType) {
+        if (!NRS.constants.REQUEST_TYPES[requestType]) {
+            // For requests invoked before the getConstants request returns,
+            // we implicitly assume that they do not require the blockchain
+            return false;
+        }
+        return NRS.constants.REQUEST_TYPES[requestType].requireBlockchain;
+    };
+
+    NRS.isRequirePost = function(requestType) {
+        if (!NRS.constants.REQUEST_TYPES[requestType]) {
+            // For requests invoked before the getConstants request returns
+            // we implicitly assume that they can use GET
+            return false;
+        }
+        return NRS.constants.REQUEST_TYPES[requestType].requirePost;
+    };
+
+    NRS.isSubmitPassphrase = function (requestType) {
+        return requestType == "startForging" ||
+            requestType == "stopForging" ||
+            requestType == "startShuffler" ||
+            requestType == "getForging" ||
+            requestType == "markHost";
     };
 
     return NRS;

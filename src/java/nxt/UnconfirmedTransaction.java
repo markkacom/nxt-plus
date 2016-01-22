@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -16,6 +16,7 @@
 
 package nxt;
 
+import nxt.util.Filter;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
@@ -231,6 +232,11 @@ public class UnconfirmedTransaction implements Transaction {
     }
 
     @Override
+    public int getFullSize() {
+        return transaction.getFullSize();
+    }
+
+    @Override
     public Appendix.Message getMessage() {
         return transaction.getMessage();
     }
@@ -267,6 +273,11 @@ public class UnconfirmedTransaction implements Transaction {
     @Override
     public List<? extends Appendix> getAppendages(boolean includeExpiredPrunable) {
         return transaction.getAppendages(includeExpiredPrunable);
+    }
+
+    @Override
+    public List<? extends Appendix> getAppendages(Filter<Appendix> filter, boolean includeExpiredPrunable) {
+        return transaction.getAppendages(filter, includeExpiredPrunable);
     }
 
     @Override

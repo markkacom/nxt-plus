@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -85,7 +85,7 @@ public class Hub {
                         Hub hub = hubs.next();
                         Account account = Account.getAccount(hub.getAccountId());
                         if (account != null && account.getEffectiveBalanceNXT(block.getHeight()) >= Constants.MIN_HUB_EFFECTIVE_BALANCE
-                                && account.getKeyHeight() > 0) {
+                                && account.getPublicKey() != null) {
                             currentHits.add(new Hit(hub, Generator.getHitTime(account, block)));
                         }
                     }

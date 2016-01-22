@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -37,6 +37,10 @@ public interface DbKey {
         public abstract DbKey newKey(T t);
 
         public abstract DbKey newKey(ResultSet rs) throws SQLException;
+
+        public T newEntity(DbKey dbKey) {
+            throw new UnsupportedOperationException("Not implemented");
+        }
 
         public final String getPKClause() {
             return pkClause;
@@ -134,6 +138,10 @@ public interface DbKey {
             this.id = id;
         }
 
+        public long getId() {
+            return id;
+        }
+
         @Override
         public int setPK(PreparedStatement pstmt) throws SQLException {
             return setPK(pstmt, 1);
@@ -163,6 +171,10 @@ public interface DbKey {
 
         private StringKey(String id) {
             this.id = id;
+        }
+
+        public String getId() {
+            return id;
         }
 
         @Override
@@ -196,6 +208,10 @@ public interface DbKey {
         private LinkKey(long idA, long idB) {
             this.idA = idA;
             this.idB = idB;
+        }
+
+        public long[] getId() {
+            return new long[]{idA, idB};
         }
 
         @Override

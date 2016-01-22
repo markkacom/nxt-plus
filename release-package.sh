@@ -12,9 +12,9 @@ OBFUSCATE=$2
 
 FILES="changelogs conf html lib resource contrib"
 FILES="${FILES} nxt.exe nxtservice.exe"
-FILES="${FILES} 3RD-PARTY-LICENSES.txt AUTHORS.txt COPYING.txt DEVELOPER-AGREEMENT.txt LICENSE.txt"
+FILES="${FILES} 3RD-PARTY-LICENSES.txt AUTHORS.txt DEVELOPER-AGREEMENT.txt LICENSE.txt"
 FILES="${FILES} DEVELOPERS-GUIDE.md OPERATORS-GUIDE.md README.md README.txt USERS-GUIDE.md"
-FILES="${FILES} mint.bat mint.sh run.bat run.sh run-tor.sh run-desktop.sh compact.sh compact.bat sign.sh"
+FILES="${FILES} mint.bat mint.sh run.bat run.sh mac-run.sh run-tor.sh run-desktop.sh compact.sh compact.bat sign.sh"
 FILES="${FILES} NXT_Wallet.url Dockerfile"
 
 unix2dos *.bat
@@ -34,7 +34,7 @@ echo obfuscate
 /opt/proguard/bin/proguard.sh @nxt.pro
 mv ../nxt.map ../nxt.map.${VERSION}
 else
-FILES="${FILES} classes src"
+FILES="${FILES} classes src COPYING.txt"
 FILES="${FILES} compile.sh javadoc.sh jar.sh package.sh"
 FILES="${FILES} win-compile.sh win-javadoc.sh win-package.sh"
 echo javadoc
@@ -44,7 +44,12 @@ echo copy resources
 cp installer/lib/JavaExe.exe nxt.exe
 cp installer/lib/JavaExe.exe nxtservice.exe
 cp -a ${FILES} nxt
+cp -a logs/placeholder.txt nxt/logs
 echo gzip
+for f in `find nxt/html -name *.gz`
+do
+	rm -f "$f"
+done
 for f in `find nxt/html -name *.html -o -name *.js -o -name *.css -o -name *.json  -o -name *.ttf -o -name *.svg -o -name *.otf`
 do
 	gzip -9c "$f" > "$f".gz
@@ -60,6 +65,12 @@ echo create installer zip
 cd -
 zip -q -X -r ${PACKAGE}.zip nxt -x \*/.idea/\* \*/.gitignore \*/.git/\* \*/\*.log \*.iml nxt/conf/nxt.properties nxt/conf/logging.properties
 rm -rf nxt
+
+echo creating full changelog
+echo -e "${PACKAGE}:\n" > changelog-full.txt
+cat changelogs/${CHANGELOG} >> changelog-full.txt
+echo -e "\n--------------------------------------------------------------------------------" >> changelog-full.txt
+cat changelogs/changelog.txt >> changelog-full.txt
 
 #echo signing zip package
 #../jarsigner.sh ${PACKAGE}.zip
@@ -80,12 +91,13 @@ sha256sum ${PACKAGE}.jar >> ${CHANGELOG}
 echo -e "\nhttps://bitbucket.org/JeanLucPicard/nxt/downloads/${PACKAGE}.exe\n" >> ${CHANGELOG}
 #echo -e "sha256:\n" >> ${CHANGELOG}
 #sha256sum ${PACKAGE}.exe >> ${CHANGELOG}
+echo -e "\nhttps://bitbucket.org/JeanLucPicard/nxt/downloads/nxt-installer-${VERSION}.dmg\n" >> ${CHANGELOG}
 
-echo -e "The exe and jar packages must have a digital signature by \"Stichting NXT\"." >> ${CHANGELOG}
+echo -e "The exe, dmg, and jar packages must have a digital signature by \"Stichting NXT\"." >> ${CHANGELOG}
 
 if [ "${OBFUSCATE}" == "obfuscate" ];
 then
-echo -e "\n\nThis is a development release for testing only. Source code is not provided." >> ${CHANGELOG}
+echo -e "\n\nThis is an experimental release for testing only. Source code is not provided." >> ${CHANGELOG}
 fi
 echo -e "\n\nChange log:\n" >> ${CHANGELOG}
 

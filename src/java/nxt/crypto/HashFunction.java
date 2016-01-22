@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -16,9 +16,6 @@
 
 package nxt.crypto;
 
-import org.bouncycastle.jcajce.provider.digest.RIPEMD160;
-import org.bouncycastle.jcajce.provider.digest.SHA3;
-
 public enum HashFunction {
 
     /**
@@ -30,11 +27,11 @@ public enum HashFunction {
         }
     },
     /**
-     * Use Bouncy Castle implementation of SHA3 (code 3)
+     * Use Bouncy Castle implementation of SHA3 (code 3). As of Bouncy Castle 1.53, this has been renamed to Keccak.
      */
     SHA3((byte)3) {
         public byte[] hash(byte[] input) {
-            return new SHA3.DigestSHA3(256).digest(input);
+            return Crypto.sha3().digest(input);
         }
     },
     /**
@@ -55,12 +52,12 @@ public enum HashFunction {
     },
     RIPEMD160((byte)6) {
         public byte[] hash(byte[] input) {
-            return new RIPEMD160.Digest().digest(input);
+            return Crypto.ripemd160().digest(input);
         }
     },
     RIPEMD160_SHA256((byte)62) {
         public byte[] hash(byte[] input) {
-            return new RIPEMD160.Digest().digest(Crypto.sha256().digest(input));
+            return Crypto.ripemd160().digest(Crypto.sha256().digest(input));
         }
     };
 

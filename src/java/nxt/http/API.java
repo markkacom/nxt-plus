@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -32,16 +32,24 @@ import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.handler.ResourceHandler;
+import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
-import org.eclipse.jetty.servlets.GzipFilter;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
 import javax.servlet.MultipartConfigElement;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.math.BigInteger;
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -61,6 +69,9 @@ public final class API {
 
     public static final int TESTNET_API_PORT = 6876;
     public static final int TESTNET_API_SSLPORT = 6877;
+
+    public static final int openAPIPort;
+    public static final int openAPISSLPort;
 
     public static final Set<String> allowedBotHosts;
     private static final List<NetworkAddress> allowedBotNets;
@@ -147,6 +158,8 @@ public final class API {
             } catch (URISyntaxException e) {
                 Logger.logInfoMessage("Cannot resolve browser URI", e);
             }
+            openAPIPort = "0.0.0.0".equals(host) && allowedBotHosts == null && (!enableSSL || port != sslPort) ? port : 0;
+            openAPISSLPort = "0.0.0.0".equals(host) && allowedBotHosts == null && enableSSL ? sslPort : 0;
 
             HandlerList apiHandlers = new HandlerList();
 
@@ -178,11 +191,14 @@ public final class API {
             ServletHolder servletHolder = apiHandler.addServlet(APIServlet.class, "/nxt");
             servletHolder.getRegistration().setMultipartConfig(new MultipartConfigElement(
                     null, Math.max(Nxt.getIntProperty("nxt.maxUploadFileSize"), Constants.MAX_TAGGED_DATA_DATA_LENGTH), -1L, 0));
-            if (Nxt.getBooleanProperty("nxt.enableAPIServerGZIPFilter")) {
-                FilterHolder gzipFilterHolder = apiHandler.addFilter(GzipFilter.class, "/nxt", null);
-                gzipFilterHolder.setInitParameter("methods", "GET,POST");
-                gzipFilterHolder.setAsyncSupported(true);
+
+            GzipHandler gzipHandler = new GzipHandler();
+            if (!Nxt.getBooleanProperty("nxt.enableAPIServerGZIPFilter")) {
+                gzipHandler.setExcludedPaths("/nxt");
             }
+            gzipHandler.setIncludedMethods("GET", "POST");
+            gzipHandler.setMinGzipSize(nxt.peer.Peers.MIN_COMPRESS_SIZE);
+            apiHandler.setGzipHandler(gzipHandler);
 
             apiHandler.addServlet(APITestServlet.class, "/test");
 
@@ -191,6 +207,11 @@ public final class API {
             if (Nxt.getBooleanProperty("nxt.apiServerCORS")) {
                 FilterHolder filterHolder = apiHandler.addFilter(CrossOriginFilter.class, "/*", null);
                 filterHolder.setInitParameter("allowedHeaders", "*");
+                filterHolder.setAsyncSupported(true);
+            }
+
+            if (Nxt.getBooleanProperty("nxt.apiFrameOptionsSameOrigin")) {
+                FilterHolder filterHolder = apiHandler.addFilter(XFrameOptionsFilter.class, "/*", null);
                 filterHolder.setAsyncSupported(true);
             }
 
@@ -221,6 +242,8 @@ public final class API {
         } else {
             apiServer = null;
             disableAdminPassword = false;
+            openAPIPort = 0;
+            openAPISSLPort = 0;
             Logger.logMessage("API server not enabled");
         }
 
@@ -304,6 +327,24 @@ public final class API {
 
         private boolean contains(BigInteger hostAddressToCheck) {
             return hostAddressToCheck.and(netMask).equals(netAddress);
+        }
+
+    }
+
+    public static final class XFrameOptionsFilter implements Filter {
+
+        @Override
+        public void init(FilterConfig filterConfig) throws ServletException {
+        }
+
+        @Override
+        public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+            ((HttpServletResponse) response).setHeader("X-FRAME-OPTIONS", "SAMEORIGIN");
+            chain.doFilter(request, response);
+        }
+
+        @Override
+        public void destroy() {
         }
 
     }

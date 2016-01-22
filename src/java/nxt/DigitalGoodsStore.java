@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -16,10 +16,12 @@
 
 package nxt;
 
+import nxt.AccountLedger.LedgerEvent;
 import nxt.crypto.EncryptedData;
 import nxt.db.DbClause;
 import nxt.db.DbIterator;
 import nxt.db.DbKey;
+import nxt.db.DbUtils;
 import nxt.db.VersionedEntityDbTable;
 import nxt.db.VersionedValuesDbTable;
 import nxt.util.Convert;
@@ -33,7 +35,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public final class DigitalGoodsStore {
@@ -56,7 +57,8 @@ public final class DigitalGoodsStore {
             }
             for (Purchase purchase : expiredPurchases) {
                 Account buyer = Account.getAccount(purchase.getBuyerId());
-                buyer.addToUnconfirmedBalanceNQT(Math.multiplyExact((long) purchase.getQuantity(), purchase.getPriceNQT()));
+                buyer.addToUnconfirmedBalanceNQT(LedgerEvent.DIGITAL_GOODS_PURCHASE_EXPIRED, purchase.getId(),
+                        Math.multiplyExact((long) purchase.getQuantity(), purchase.getPriceNQT()));
                 Goods.getGoods(purchase.getGoodsId()).changeQuantity(purchase.getQuantity());
                 purchase.setPending(false);
             }
@@ -121,7 +123,7 @@ public final class DigitalGoodsStore {
             return tagTable.getCount();
         }
 
-        private static final DbClause inStockOnlyClause = new DbClause.FixedClause(" in_stock_count > 0 ");
+        private static final DbClause inStockOnlyClause = new DbClause.IntClause("in_stock_count", DbClause.Op.GT, 0);
 
         public static int getCountInStock() {
             return tagTable.getCount(inStockOnlyClause);
@@ -241,7 +243,8 @@ public final class DigitalGoodsStore {
 
         };
 
-        private static final DbClause inStockClause = new DbClause.FixedClause(" goods.delisted = FALSE AND goods.quantity > 0 ");
+        private static final DbClause inStockClause = new DbClause.BooleanClause("goods.delisted", false)
+                .and(new DbClause.LongClause("goods.quantity", DbClause.Op.GT, 0));
 
         public static int getCount() {
             return goodsTable.getCount();
@@ -317,8 +320,7 @@ public final class DigitalGoodsStore {
             this.name = rs.getString("name");
             this.description = rs.getString("description");
             this.tags = rs.getString("tags");
-            Object[] array = (Object[])rs.getArray("parsed_tags").getArray();
-            this.parsedTags = Arrays.copyOf(array, array.length, String[].class);
+            this.parsedTags = DbUtils.getArray(rs, "parsed_tags", String[].class);
             this.quantity = rs.getInt("quantity");
             this.priceNQT = rs.getLong("price");
             this.delisted = rs.getBoolean("delisted");
@@ -335,7 +337,7 @@ public final class DigitalGoodsStore {
                 pstmt.setString(++i, this.name);
                 pstmt.setString(++i, this.description);
                 pstmt.setString(++i, this.tags);
-                pstmt.setObject(++i, this.parsedTags);
+                DbUtils.setArray(pstmt, ++i, this.parsedTags);
                 pstmt.setInt(++i, this.timestamp);
                 pstmt.setInt(++i, this.quantity);
                 pstmt.setLong(++i, this.priceNQT);
@@ -619,14 +621,14 @@ public final class DigitalGoodsStore {
         }
 
         public static DbIterator<Purchase> getPendingSellerPurchases(final long sellerId, int from, int to) {
-            DbClause dbClause = new DbClause.LongClause("seller_id", sellerId).and(new DbClause.FixedClause("pending = TRUE"));
+            DbClause dbClause = new DbClause.LongClause("seller_id", sellerId).and(new DbClause.BooleanClause("pending", true));
             return purchaseTable.getManyBy(dbClause, from, to);
         }
 
         public static DbIterator<Purchase> getExpiredSellerPurchases(final long sellerId, int from, int to) {
             DbClause dbClause = new DbClause.LongClause("seller_id", sellerId)
-                    .and(new DbClause.FixedClause("pending = FALSE"))
-                    .and(new DbClause.FixedClause("goods IS NULL"));
+                    .and(new DbClause.BooleanClause("pending", false))
+                    .and(new DbClause.NullClause("goods"));
             return purchaseTable.getManyBy(dbClause, from, to);
         }
 
@@ -640,7 +642,7 @@ public final class DigitalGoodsStore {
             final int previousTimestamp = Nxt.getBlockchain().getBlock(block.getPreviousBlockId()).getTimestamp();
             DbClause dbClause = new DbClause.LongClause("deadline", DbClause.Op.LT, timestamp)
                     .and(new DbClause.LongClause("deadline", DbClause.Op.GTE, previousTimestamp))
-                    .and(new DbClause.FixedClause("pending = TRUE"));
+                    .and(new DbClause.BooleanClause("pending", true));
             return purchaseTable.getManyBy(dbClause, 0, -1);
         }
 
@@ -935,7 +937,8 @@ public final class DigitalGoodsStore {
             purchaseListeners.notify(purchase, Event.PURCHASE);
         } else {
             Account buyer = Account.getAccount(transaction.getSenderId());
-            buyer.addToUnconfirmedBalanceNQT(Math.multiplyExact((long) attachment.getQuantity(), attachment.getPriceNQT()));
+            buyer.addToUnconfirmedBalanceNQT(LedgerEvent.DIGITAL_GOODS_DELISTED, transaction.getId(),
+                    Math.multiplyExact((long) attachment.getQuantity(), attachment.getPriceNQT()));
             // restoring the unconfirmed balance if purchase not successful, however buyer still lost the transaction fees
         }
     }
@@ -945,21 +948,25 @@ public final class DigitalGoodsStore {
         purchase.setPending(false);
         long totalWithoutDiscount = Math.multiplyExact((long) purchase.getQuantity(), purchase.getPriceNQT());
         Account buyer = Account.getAccount(purchase.getBuyerId());
-        buyer.addToBalanceNQT(Math.subtractExact(attachment.getDiscountNQT(), totalWithoutDiscount));
-        buyer.addToUnconfirmedBalanceNQT(attachment.getDiscountNQT());
+        long transactionId = transaction.getId();
+        buyer.addToBalanceNQT(LedgerEvent.DIGITAL_GOODS_DELIVERY, transactionId,
+                Math.subtractExact(attachment.getDiscountNQT(), totalWithoutDiscount));
+        buyer.addToUnconfirmedBalanceNQT(LedgerEvent.DIGITAL_GOODS_DELIVERY, transactionId, attachment.getDiscountNQT());
         Account seller = Account.getAccount(transaction.getSenderId());
-        seller.addToBalanceAndUnconfirmedBalanceNQT(Math.subtractExact(totalWithoutDiscount, attachment.getDiscountNQT()));
+        seller.addToBalanceAndUnconfirmedBalanceNQT(LedgerEvent.DIGITAL_GOODS_DELIVERY, transactionId,
+                Math.subtractExact(totalWithoutDiscount, attachment.getDiscountNQT()));
         purchase.setEncryptedGoods(attachment.getGoods(), attachment.goodsIsText());
         purchase.setDiscountNQT(attachment.getDiscountNQT());
         purchaseListeners.notify(purchase, Event.DELIVERY);
     }
 
-    static void refund(long sellerId, long purchaseId, long refundNQT, Appendix.EncryptedMessage encryptedMessage) {
+    static void refund(LedgerEvent event, long eventId, long sellerId, long purchaseId, long refundNQT,
+                       Appendix.EncryptedMessage encryptedMessage) {
         Purchase purchase = Purchase.purchaseTable.get(Purchase.purchaseDbKeyFactory.newKey(purchaseId));
         Account seller = Account.getAccount(sellerId);
-        seller.addToBalanceNQT(-refundNQT);
+        seller.addToBalanceNQT(event, eventId, -refundNQT);
         Account buyer = Account.getAccount(purchase.getBuyerId());
-        buyer.addToBalanceAndUnconfirmedBalanceNQT(refundNQT);
+        buyer.addToBalanceAndUnconfirmedBalanceNQT(event, eventId, refundNQT);
         if (encryptedMessage != null) {
             purchase.setRefundNote(encryptedMessage.getEncryptedData());
         }

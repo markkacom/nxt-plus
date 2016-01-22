@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -38,10 +38,10 @@ public final class GetAccount extends APIServlet.APIRequestHandler {
     JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
 
         Account account = ParameterParser.getAccount(req);
-        boolean includeLessors = !"false".equalsIgnoreCase(req.getParameter("includeLessors"));
-        boolean includeAssets = !"false".equalsIgnoreCase(req.getParameter("includeAssets"));
-        boolean includeCurrencies = !"false".equalsIgnoreCase(req.getParameter("includeCurrencies"));
-        boolean includeEffectiveBalance = !"false".equalsIgnoreCase(req.getParameter("includeEffectiveBalance"));
+        boolean includeLessors = "true".equalsIgnoreCase(req.getParameter("includeLessors"));
+        boolean includeAssets = "true".equalsIgnoreCase(req.getParameter("includeAssets"));
+        boolean includeCurrencies = "true".equalsIgnoreCase(req.getParameter("includeCurrencies"));
+        boolean includeEffectiveBalance = "true".equalsIgnoreCase(req.getParameter("includeEffectiveBalance"));
 
         JSONObject response = JSONData.accountBalance(account, includeEffectiveBalance);
         JSONData.putAccount(response, "account", account.getId());
@@ -64,6 +64,12 @@ public final class GetAccount extends APIServlet.APIRequestHandler {
                 response.put("nextLeasingHeightFrom", accountLease.getNextLeasingHeightFrom());
                 response.put("nextLeasingHeightTo", accountLease.getNextLeasingHeightTo());
             }
+        }
+
+        if (!account.getControls().isEmpty()) {
+            JSONArray accountControlsJson = new JSONArray();
+            account.getControls().forEach(accountControl -> accountControlsJson.add(accountControl.toString()));
+            response.put("accountControls", accountControlsJson);
         }
 
         if (includeLessors) {

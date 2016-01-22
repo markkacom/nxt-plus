@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -125,7 +125,6 @@ public class TransactionalDb extends BasicDb {
             throw new IllegalStateException("Not in transaction");
         }
         localConnection.set(null);
-        transactionCaches.get().clear();
         transactionCaches.set(null);
         long now = System.currentTimeMillis();
         long elapsed = now - ((DbConnection)con).txStart;
@@ -171,6 +170,17 @@ public class TransactionalDb extends BasicDb {
             transactionCaches.get().put(tableName, cacheMap);
         }
         return cacheMap;
+    }
+
+    void clearCache(String tableName) {
+        Map<DbKey,Object> cacheMap = transactionCaches.get().get(tableName);
+        if (cacheMap != null) {
+            cacheMap.clear();
+        }
+    }
+
+    public void clearCache() {
+        transactionCaches.get().values().forEach(Map::clear);
     }
 
     private static void logThreshold(String msg) {

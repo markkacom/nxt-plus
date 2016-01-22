@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -33,7 +33,7 @@ public final class GetAliasCount extends APIServlet.APIRequestHandler {
 
     @Override
     JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
-        final long accountId = ParameterParser.getAccount(req).getId();
+        final long accountId = ParameterParser.getAccountId(req, true);
         JSONObject response = new JSONObject();
         response.put("numberOfAliases", Alias.getAccountAliasCount(accountId));
         return response;

@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -16,6 +16,7 @@
 
 package nxt;
 
+import nxt.util.Filter;
 import org.json.simple.JSONObject;
 
 import java.util.List;
@@ -108,6 +109,8 @@ public interface Transaction {
 
     byte getVersion();
 
+    int getFullSize();
+
     Appendix.Message getMessage();
 
     Appendix.EncryptedMessage getEncryptedMessage();
@@ -123,6 +126,8 @@ public interface Transaction {
     List<? extends Appendix> getAppendages();
 
     List<? extends Appendix> getAppendages(boolean includeExpiredPrunable);
+
+    List<? extends Appendix> getAppendages(Filter<Appendix> filter, boolean includeExpiredPrunable);
 
     int getECBlockHeight();
 

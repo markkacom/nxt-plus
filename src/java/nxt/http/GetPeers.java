@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -31,7 +31,7 @@ public final class GetPeers extends APIServlet.APIRequestHandler {
     static final GetPeers instance = new GetPeers();
 
     private GetPeers() {
-        super(new APITag[] {APITag.NETWORK}, "active", "state", "includePeerInfo");
+        super(new APITag[] {APITag.NETWORK}, "active", "state", "service", "service", "service", "includePeerInfo");
     }
 
     @Override
@@ -39,14 +39,52 @@ public final class GetPeers extends APIServlet.APIRequestHandler {
 
         boolean active = "true".equalsIgnoreCase(req.getParameter("active"));
         String stateValue = Convert.emptyToNull(req.getParameter("state"));
+        String[] serviceValues = req.getParameterValues("service");
         boolean includePeerInfo = "true".equalsIgnoreCase(req.getParameter("includePeerInfo"));
-
-        Collection<? extends Peer> peers = active ? Peers.getActivePeers() : stateValue != null ? Peers.getPeers(Peer.State.valueOf(stateValue)) : Peers.getAllPeers();
-        JSONArray peersJSON = new JSONArray();
-        if (includePeerInfo) {
-            peers.forEach(peer -> peersJSON.add(JSONData.peer(peer)));
+        Peer.State state;
+        if (stateValue != null) {
+            try {
+                state = Peer.State.valueOf(stateValue);
+            } catch (RuntimeException exc) {
+                return JSONResponses.incorrect("state", "- '" + stateValue + "' is not defined");
+            }
         } else {
-            peers.forEach(peer -> peersJSON.add(peer.getHost()));
+            state = null;
+        }
+        long serviceCodes = 0;
+        if (serviceValues != null) {
+            for (String serviceValue : serviceValues) {
+                try {
+                    serviceCodes |= Peer.Service.valueOf(serviceValue).getCode();
+                } catch (RuntimeException exc) {
+                    return JSONResponses.incorrect("service", "- '" + serviceValue + "' is not defined");
+                }
+            }
+        }
+
+        Collection<? extends Peer> peers = active ? Peers.getActivePeers() : state != null ? Peers.getPeers(state) : Peers.getAllPeers();
+        JSONArray peersJSON = new JSONArray();
+        if (serviceCodes != 0) {
+            final long services = serviceCodes;
+            if (includePeerInfo) {
+                peers.forEach(peer -> {
+                    if (peer.providesServices(services)) {
+                        peersJSON.add(JSONData.peer(peer));
+                    }
+                });
+            } else {
+                peers.forEach(peer -> {
+                    if (peer.providesServices(services)) {
+                        peersJSON.add(peer.getHost());
+                    }
+                });
+            }
+        } else {
+            if (includePeerInfo) {
+                peers.forEach(peer -> peersJSON.add(JSONData.peer(peer)));
+            } else {
+                peers.forEach(peer -> peersJSON.add(peer.getHost()));
+            }
         }
 
         JSONObject response = new JSONObject();

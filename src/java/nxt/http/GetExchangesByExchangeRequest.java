@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -42,7 +42,7 @@ public final class GetExchangesByExchangeRequest extends APIServlet.APIRequestHa
             return MISSING_TRANSACTION;
         }
         long transactionId = Convert.parseUnsignedLong(transactionIdString);
-        boolean includeCurrencyInfo = !"false".equalsIgnoreCase(req.getParameter("includeCurrencyInfo"));
+        boolean includeCurrencyInfo = "true".equalsIgnoreCase(req.getParameter("includeCurrencyInfo"));
         JSONObject response = new JSONObject();
         JSONArray exchangesData = new JSONArray();
         try (DbIterator<Exchange> exchanges = Exchange.getExchanges(transactionId)) {

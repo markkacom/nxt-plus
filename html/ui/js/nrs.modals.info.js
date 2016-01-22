@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -26,7 +26,9 @@ var NRS = (function(NRS, $, undefined) {
 
 		NRS.fetchingModalData = true;
 
-		NRS.sendRequest("getState", {}, function(state) {
+		NRS.sendRequest("getState", {
+			"includeCounts": true
+		}, function(state) {
 			for (var key in state) {
 				var el = $("#nrs_node_state_" + key);
 				if (el.length) {

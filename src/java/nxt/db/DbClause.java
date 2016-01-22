@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -65,6 +65,32 @@ public abstract class DbClause {
 
         public FixedClause(String clause) {
             super(clause);
+        }
+
+        @Override
+        protected int set(PreparedStatement pstmt, int index) throws SQLException {
+            return index;
+        }
+
+    }
+
+    public static final class NullClause extends DbClause {
+
+        public NullClause(String columnName) {
+            super(" " + columnName + " IS NULL ");
+        }
+
+        @Override
+        protected int set(PreparedStatement pstmt, int index) throws SQLException {
+            return index;
+        }
+
+    }
+
+    public static final class NotNullClause extends DbClause {
+
+        public NotNullClause(String columnName) {
+            super(" " + columnName + " IS NOT NULL ");
         }
 
         @Override
@@ -145,6 +171,45 @@ public abstract class DbClause {
         @Override
         protected int set(PreparedStatement pstmt, int index) throws SQLException {
             pstmt.setInt(index, value);
+            return index + 1;
+        }
+
+    }
+
+    public static final class ByteClause extends DbClause {
+
+        private final byte value;
+
+        public ByteClause(String columnName, byte value) {
+            super(" " + columnName + " = ? ");
+            this.value = value;
+        }
+
+        public ByteClause(String columnName, Op operator, byte value) {
+            super(" " + columnName + operator.operator() + "? ");
+            this.value = value;
+        }
+
+        @Override
+        protected int set(PreparedStatement pstmt, int index) throws SQLException {
+            pstmt.setByte(index, value);
+            return index + 1;
+        }
+
+    }
+
+    public static final class BooleanClause extends DbClause {
+
+        private final boolean value;
+
+        public BooleanClause(String columnName, boolean value) {
+            super(" " + columnName + " = ? ");
+            this.value = value;
+        }
+
+        @Override
+        protected int set(PreparedStatement pstmt, int index) throws SQLException {
+            pstmt.setBoolean(index, value);
             return index + 1;
         }
 

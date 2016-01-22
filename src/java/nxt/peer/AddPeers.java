@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -31,11 +31,16 @@ final class AddPeers extends PeerServlet.PeerRequestHandler {
     JSONStreamAware processRequest(JSONObject request, Peer peer) {
         final JSONArray peers = (JSONArray)request.get("peers");
         if (peers != null && Peers.getMorePeers && !Peers.hasTooManyKnownPeers()) {
+            final JSONArray services = (JSONArray)request.get("services");
+            final boolean setServices = (services != null && services.size() == peers.size());
             Peers.peersService.submit(() -> {
-                for (Object announcedAddress : peers) {
-                    Peer newPeer = Peers.findOrCreatePeer((String) announcedAddress, true);
+                for (int i=0; i<peers.size(); i++) {
+                    String announcedAddress = (String)peers.get(i);
+                    PeerImpl newPeer = Peers.findOrCreatePeer(announcedAddress, true);
                     if (newPeer != null) {
-                        Peers.addPeer(newPeer);
+                        if (Peers.addPeer(newPeer) && setServices) {
+                            newPeer.setServices(Long.parseUnsignedLong((String)services.get(i)));
+                        }
                         if (Peers.hasTooManyKnownPeers()) {
                             break;
                         }

@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -26,18 +26,20 @@ final class GetPeers extends PeerServlet.PeerRequestHandler {
 
     private GetPeers() {}
 
-
     @Override
     JSONStreamAware processRequest(JSONObject request, Peer peer) {
         JSONObject response = new JSONObject();
         JSONArray jsonArray = new JSONArray();
+        JSONArray services = new JSONArray();
         Peers.getAllPeers().forEach(otherPeer -> {
             if (!otherPeer.isBlacklisted() && otherPeer.getAnnouncedAddress() != null
                     && otherPeer.getState() == Peer.State.CONNECTED && otherPeer.shareAddress()) {
                 jsonArray.add(otherPeer.getAnnouncedAddress());
+                services.add(Long.toUnsignedString(((PeerImpl)otherPeer).getServices()));
             }
         });
         response.put("peers", jsonArray);
+        response.put("services", services);         // Separate array for backwards compatibility
         return response;
     }
 

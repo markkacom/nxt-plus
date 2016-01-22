@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -124,6 +124,7 @@ public class BasicDb {
 
     public void init(DbVersion dbVersion) {
         Logger.logDebugMessage("Database jdbc url set to %s username %s", dbUrl, dbUsername);
+        FullTextTrigger.setActive(true);
         cp = JdbcConnectionPool.create(dbUrl, dbUsername, dbPassword);
         cp.setMaxConnections(maxConnections);
         cp.setLoginTimeout(loginTimeout);
@@ -142,6 +143,7 @@ public class BasicDb {
             return;
         }
         try {
+            FullTextTrigger.setActive(false);
             Connection con = cp.getConnection();
             Statement stmt = con.createStatement();
             stmt.execute("SHUTDOWN COMPACT");

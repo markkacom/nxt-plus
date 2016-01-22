@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -36,11 +36,11 @@ public final class GetAccountPublicKey extends APIServlet.APIRequestHandler {
     @Override
     JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
 
-        Account account = ParameterParser.getAccount(req);
-
-        if (account.getPublicKey() != null) {
+        long accountId = ParameterParser.getAccountId(req, true);
+        byte[] publicKey = Account.getPublicKey(accountId);
+        if (publicKey != null) {
             JSONObject response = new JSONObject();
-            response.put("publicKey", Convert.toHexString(account.getPublicKey()));
+            response.put("publicKey", Convert.toHexString(publicKey));
             return response;
         } else {
             return JSON.emptyJSON;

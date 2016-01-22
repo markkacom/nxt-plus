@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -30,7 +30,7 @@ public final class PopOff extends APIServlet.APIRequestHandler {
     static final PopOff instance = new PopOff();
 
     private PopOff() {
-        super(new APITag[] {APITag.DEBUG}, "numBlocks", "height");
+        super(new APITag[] {APITag.DEBUG}, "numBlocks", "height", "keepTransactions");
     }
 
     @Override
@@ -44,7 +44,7 @@ public final class PopOff extends APIServlet.APIRequestHandler {
         try {
             height = Integer.parseInt(req.getParameter("height"));
         } catch (NumberFormatException ignored) {}
-
+        boolean keepTransactions = "true".equalsIgnoreCase(req.getParameter("keepTransactions"));
         List<? extends Block> blocks;
         try {
             Nxt.getBlockchainProcessor().setGetMoreBlocks(false);
@@ -59,9 +59,12 @@ public final class PopOff extends APIServlet.APIRequestHandler {
             Nxt.getBlockchainProcessor().setGetMoreBlocks(true);
         }
         JSONArray blocksJSON = new JSONArray();
-        blocks.forEach(block -> blocksJSON.add(JSONData.block(block, true)));
+        blocks.forEach(block -> blocksJSON.add(JSONData.block(block, true, false)));
         JSONObject response = new JSONObject();
         response.put("blocks", blocksJSON);
+        if (keepTransactions) {
+            blocks.forEach(block -> Nxt.getTransactionProcessor().processLater(block.getTransactions()));
+        }
         return response;
     }
 
@@ -77,6 +80,11 @@ public final class PopOff extends APIServlet.APIRequestHandler {
 
     @Override
     final boolean allowRequiredBlockParameters() {
+        return false;
+    }
+
+    @Override
+    boolean requireBlockchain() {
         return false;
     }
 

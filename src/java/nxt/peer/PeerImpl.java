@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -67,6 +67,8 @@ final class PeerImpl implements Peer {
     private volatile Hallmark hallmark;
     private volatile String platform;
     private volatile String application;
+    private volatile int apiPort;
+    private volatile int apiSSLPort;
     private volatile String version;
     private volatile boolean isOldVersion;
     private volatile long adjustedWeight;
@@ -80,6 +82,7 @@ final class PeerImpl implements Peer {
     private volatile int lastInboundRequest;
     private volatile long hallmarkBalance = -1;
     private volatile int hallmarkBalanceHeight;
+    private volatile long services;
 
     PeerImpl(String host, String announcedAddress) {
         this.host = host;
@@ -221,6 +224,35 @@ final class PeerImpl implements Peer {
     }
 
     @Override
+    public int getApiPort() {
+        return apiPort;
+    }
+
+    void setApiPort(Object apiPortValue) {
+        if (apiPortValue != null) {
+            try {
+                apiPort = ((Long)apiPortValue).intValue();
+            } catch (RuntimeException e) {
+                throw new IllegalArgumentException("Invalid peer apiPort " + apiPortValue);
+            }
+        }
+    }
+
+    public int getApiSSLPort() {
+        return apiSSLPort;
+    }
+
+    void setApiSSLPort(Object apiSSLPortValue) {
+        if (apiSSLPortValue != null) {
+            try {
+                apiSSLPort = ((Long)apiSSLPortValue).intValue();
+            } catch (RuntimeException e) {
+                throw new IllegalArgumentException("Invalid peer apiSSLPort " + apiSSLPortValue);
+            }
+        }
+    }
+
+    @Override
     public boolean shareAddress() {
         return shareAddress;
     }
@@ -298,7 +330,7 @@ final class PeerImpl implements Peer {
                 Logger.logDebugMessage("Blacklisting " + host + " because of: " + cause.toString(), cause);
             }
         }
-        blacklist(cause.toString() == null ? cause.getClass().getName() : cause.toString());
+        blacklist(cause.toString() == null || Peers.hideErrorDetails ? cause.getClass().getName() : cause.toString());
     }
 
     @Override
@@ -582,7 +614,12 @@ final class PeerImpl implements Peer {
                     setState(State.NON_CONNECTED);
                     return;
                 }
+                String servicesString = (String)response.get("services");
+                long origServices = services;
+                services = (servicesString != null ? Long.parseUnsignedLong(servicesString) : 0);
                 setApplication((String)response.get("application"));
+                setApiPort(response.get("apiPort"));
+                setApiSSLPort(response.get("apiSSLPort"));
                 lastUpdated = lastConnectAttempt;
                 setVersion((String) response.get("version"));
                 setPlatform((String) response.get("platform"));
@@ -628,8 +665,12 @@ final class PeerImpl implements Peer {
                         return;
                     }
                 }
+                
                 if (!isOldVersion) {
                     setState(State.CONNECTED);
+                    if (services != origServices) {
+                        Peers.notifyListeners(this, Peers.Event.CHANGED_SERVICES);
+                    }
                 } else if (!isBlacklisted()) {
                     blacklist("Old version: " + version);
                 }
@@ -651,7 +692,7 @@ final class PeerImpl implements Peer {
             int announcedPort = uri.getPort() == -1 ? Peers.getDefaultPeerPort() : uri.getPort();
             if (hallmark != null && announcedPort != hallmark.getPort()) {
                 Logger.logDebugMessage("Announced port " + announcedPort + " does not match hallmark " + hallmark.getPort() + ", ignoring hallmark for " + host);
-                hallmark = null;
+                unsetHallmark();
             }
             InetAddress address = InetAddress.getByName(host);
             for (InetAddress inetAddress : InetAddress.getAllByName(uri.getHost())) {
@@ -678,7 +719,7 @@ final class PeerImpl implements Peer {
         }
 
         if (hallmarkString == null) {
-            this.hallmark = null;
+            unsetHallmark();
             return true;
         }
 
@@ -687,7 +728,7 @@ final class PeerImpl implements Peer {
             Hallmark hallmark = Hallmark.parseHallmark(hallmarkString);
             if (!hallmark.isValid()) {
                 Logger.logDebugMessage("Invalid hallmark " + hallmarkString + " for " + host);
-                this.hallmark = null;
+                unsetHallmark();
                 return false;
             }
             if (!hallmark.getHost().equals(host)) {
@@ -701,11 +742,11 @@ final class PeerImpl implements Peer {
                 }
                 if (!validHost) {
                     Logger.logDebugMessage("Hallmark host " + hallmark.getHost() + " doesn't match " + host);
-                    this.hallmark = null;
+                    unsetHallmark();
                     return false;
                 }
             }
-            this.hallmark = hallmark;
+            setHallmark(hallmark);
             long accountId = Account.getId(hallmark.getPublicKey());
             List<PeerImpl> groupedPeers = new ArrayList<>();
             int mostRecentDate = 0;
@@ -736,7 +777,7 @@ final class PeerImpl implements Peer {
         } catch (RuntimeException e) {
             Logger.logDebugMessage("Failed to analyze hallmark for peer " + host + ", " + e.toString(), e);
         }
-        this.hallmark = null;
+        unsetHallmark();
         return false;
 
     }
@@ -748,4 +789,65 @@ final class PeerImpl implements Peer {
         return hallmark.getWeight();
     }
 
+    private void unsetHallmark() {
+        removeService(Service.HALLMARK, false);
+        this.hallmark = null;
+    }
+
+    private void setHallmark(Hallmark hallmark) {
+        this.hallmark = hallmark;
+        addService(Service.HALLMARK, false);
+    }
+
+    void addService(Service service, boolean doNotify) {
+        boolean notifyListeners;
+        synchronized (this) {
+            notifyListeners = ((services & service.getCode()) == 0);
+            services |= service.getCode();
+        }
+        if (notifyListeners && doNotify) {
+            Peers.notifyListeners(this, Peers.Event.CHANGED_SERVICES);
+        }
+    }
+
+    void removeService(Service service, boolean doNotify) {
+        boolean notifyListeners;
+        synchronized (this) {
+            notifyListeners = ((services & service.getCode()) != 0);
+            services &= (~service.getCode());
+        }
+        if (notifyListeners && doNotify) {
+            Peers.notifyListeners(this, Peers.Event.CHANGED_SERVICES);
+        }
+    }
+
+    long getServices() {
+        synchronized (this) {
+            return services;
+        }
+    }
+
+    void setServices(long services) {
+        synchronized (this) {
+            this.services = services;
+        }
+    }
+
+    @Override
+    public boolean providesService(Service service) {
+        boolean isProvided;
+        synchronized (this) {
+            isProvided = ((services & service.getCode()) != 0);
+        }
+        return isProvided;
+    }
+
+    @Override
+    public boolean providesServices(long services) {
+        boolean isProvided;
+        synchronized (this) {
+            isProvided = (services & this.services) == services;
+        }
+        return isProvided;
+    }
 }

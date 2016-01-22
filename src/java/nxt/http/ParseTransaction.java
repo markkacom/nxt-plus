@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2013-2015 The Nxt Core Developers.                             *
+ * Copyright © 2013-2016 The Nxt Core Developers.                             *
  *                                                                            *
  * See the AUTHORS.txt, DEVELOPER-AGREEMENT.txt and LICENSE.txt files at      *
  * the top-level directory of this distribution for the individual copyright  *
@@ -51,6 +51,11 @@ public final class ParseTransaction extends APIServlet.APIRequestHandler {
         }
         response.put("verify", transaction.verifySignature());
         return response;
+    }
+
+    @Override
+    boolean requireBlockchain() {
+        return false;
     }
 
 }

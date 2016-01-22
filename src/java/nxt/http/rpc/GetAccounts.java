@@ -73,7 +73,7 @@ public class GetAccounts extends RPCCall {
               }
               
               if (!exludeForging) {
-                  json.put("numberOfBlocks", Nxt.getBlockchain().getBlockCount(account));
+                  json.put("numberOfBlocks", Nxt.getBlockchain().getBlockCount(account.getId()));
                   
                   Block block = MofoQueries.getLastBlock(account.getId());
                   if (block != null) {

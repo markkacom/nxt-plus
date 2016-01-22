@@ -573,17 +573,15 @@ class NxtDbVersion extends DbVersion {
             case 232:
                 apply("CREATE INDEX IF NOT EXISTS trade_timestamp_desc_idx ON trade (timestamp DESC)"); /* MofoQueries */
             case 233:
-                apply("CREATE TABLE IF NOT EXISTS mofo_asset_chart (asset_id BIGINT NOT NULL, timestamp INT NOT NULL, "
-                                    + "window TINYINT NOT NULL, openNQT BIGINT NOT NULL, highNQT BIGINT NOT NULL, lowNQT BIGINT NOT NULL, "
-                                    + "closeNQT BIGINT NOT NULL, averageNQT BIGINT NOT NULL, volumeQNT BIGINT NOT NULL, height INT NOT NULL)");
+                apply(null);
             case 234:
-                apply("CREATE INDEX IF NOT EXISTS mofo_asset_chart_asset_id_idx ON mofo_asset_chart (asset_id)");
+                apply(null);
             case 235:
-                apply("CREATE INDEX IF NOT EXISTS mofo_asset_chart_window_idx ON mofo_asset_chart (window)");
+                apply(null);
             case 236:
-                apply("CREATE INDEX IF NOT EXISTS mofo_asset_chart_timestamp_desc_idx ON mofo_asset_chart (timestamp DESC)");
+                apply(null);
             case 237:
-                apply("CREATE INDEX IF NOT EXISTS mofo_asset_chart_height_idx ON mofo_asset_chart (height)");
+                apply(null);
             case 238:
                 apply("CREATE TABLE IF NOT EXISTS mofo_post ( "
                     + "type TINYINT NOT NULL, timestamp INT NOT NULL, sender_account_id BIGINT NOT NULL, "

@@ -4,8 +4,6 @@ import nxt.Asset;
 import nxt.Order;
 import nxt.http.ParameterException;
 import nxt.http.websocket.RPCCall;
-import nxt.util.Convert;
-
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
 

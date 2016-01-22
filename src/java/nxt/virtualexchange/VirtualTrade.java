@@ -10,7 +10,6 @@ import nxt.Trade;
 import nxt.db.DbIterator;
 import nxt.http.websocket.JSONData;
 import nxt.http.websocket.MofoSocketServer;
-import nxt.util.Convert;
 import nxt.virtualexchange.VirtualOrder.VirtualAsk;
 import nxt.virtualexchange.VirtualOrder.VirtualBid;
 

@@ -44,7 +44,6 @@ import nxt.http.rpc.GetMyOpenOrders;
 import nxt.http.rpc.GetRecentTransactions;
 import nxt.http.rpc.Search;
 import nxt.peer.Peer;
-import nxt.util.Convert;
 import nxt.util.JSON;
 import nxt.util.Logger;
 

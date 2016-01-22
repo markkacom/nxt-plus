@@ -353,7 +353,6 @@ public final class Nxt {
                 WebsocketServer.init();
                 Users.init();
                 DebugTrace.init();
-                MofoChart.init();
                 MofoMessaging.init();
                 ExchangeObserver.init();
                 int timeMultiplier = (Constants.isTestnet && Constants.isOffline) ? Math.max(Nxt.getIntProperty("nxt.timeMultiplier"), 1) : 1;

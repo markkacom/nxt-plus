@@ -28,6 +28,7 @@ import nxt.util.Listener;
 import nxt.util.Listeners;
 import nxt.util.Logger;
 import nxt.util.ThreadPool;
+
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
@@ -112,6 +113,7 @@ final class TransactionProcessorImpl implements TransactionProcessor {
     private final Set<TransactionImpl> broadcastedTransactions = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Listeners<List<? extends Transaction>,Event> transactionListeners = new Listeners<>();
 
+    @SuppressWarnings("serial")
     private final PriorityQueue<UnconfirmedTransaction> waitingTransactions = new PriorityQueue<UnconfirmedTransaction>(
             (UnconfirmedTransaction o1, UnconfirmedTransaction o2) -> {
                 int result;

@@ -300,8 +300,13 @@ public abstract class Order {
             super(transaction, attachment);
             this.dbKey = askOrderDbKeyFactory.newKey(super.id);
         }
+<<<<<<< HEAD
   
+        private Ask(ResultSet rs) throws SQLException {
+=======
+
         private Ask(ResultSet rs, DbKey dbKey) throws SQLException {
+>>>>>>> 1.7.5
             super(rs);
             this.dbKey = dbKey;
         }
@@ -456,8 +461,13 @@ public abstract class Order {
             super(transaction, attachment);
             this.dbKey = bidOrderDbKeyFactory.newKey(super.id);
         }
+<<<<<<< HEAD
   
+        private Bid(ResultSet rs) throws SQLException {
+=======
+
         private Bid(ResultSet rs, DbKey dbKey) throws SQLException {
+>>>>>>> 1.7.5
             super(rs);
             this.dbKey = dbKey;
         }

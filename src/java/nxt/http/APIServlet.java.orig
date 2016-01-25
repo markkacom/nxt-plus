@@ -372,8 +372,9 @@ public final class APIServlet extends HttpServlet {
         map.put("getPhasingOnlyControl", GetPhasingOnlyControl.instance);
         map.put("getAllPhasingOnlyControls", GetAllPhasingOnlyControls.instance);
         map.put("detectMimeType", DetectMimeType.instance);
-        registerFIMKAPI(map);
         
+        registerFIMKAPI(map);
+
         API.disabledAPIs.forEach(api -> {
             APIRequestHandler handler = map.remove(api);
             if (handler == null) {
@@ -402,16 +403,18 @@ public final class APIServlet extends HttpServlet {
         disabledRequestHandlers = disabledMap.isEmpty() ? Collections.emptyMap() : Collections.unmodifiableMap(disabledMap);
     }
 
-    static void initClass() {}
-
+<<<<<<< HEAD
     static void registerFIMKAPI(Map<String,APIRequestHandler> map) {
         map.put("getVirtualAskOrders", GetVirtualAskOrders.instance);
         map.put("getVirtualBidOrders", GetVirtualBidOrders.instance);
         map.put("getVirtualTrades", GetVirtualTrades.instance);
         map.put("getChatList", GetChatList.instance);
         map.put("getChatMessages", GetChatMessages.instance);        
-    }    
-    
+    }
+=======
+    static void initClass() {}
+>>>>>>> 1.7.5
+
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         process(req, resp);

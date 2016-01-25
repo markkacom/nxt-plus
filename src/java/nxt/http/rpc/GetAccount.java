@@ -25,14 +25,16 @@ public class GetAccount extends RPCCall {
     @Override
     public JSONStreamAware call(JSONObject arguments) throws ParameterException {
       
-        Account account = ParameterParser.getAccount(arguments);
+        long accountId = ParameterParser.getUnsignedLong(arguments, "account", true);
+        Account account = Account.getAccount(accountId);
         boolean includeForging = "true".equalsIgnoreCase((String) arguments.get("includeForging"));
         
         JSONObject response = JSONData.accountBalance(account);
-        JSONData.putAccount(response, "account", account.getId());
+        JSONData.putAccount(response, "account", accountId);
         if (account != null) {
-            if (account.getPublicKey() != null) {
-                response.put("publicKey", Convert.toHexString(account.getPublicKey()));              
+            byte[] publicKey = Account.getPublicKey(accountId);
+            if (publicKey != null) {
+                response.put("publicKey", Convert.toHexString(publicKey));              
             }
             AccountInfo accountInfo = account.getAccountInfo();
             if (accountInfo != null) {

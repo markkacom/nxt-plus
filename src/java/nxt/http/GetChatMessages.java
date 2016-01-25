@@ -102,8 +102,9 @@ public class GetChatMessages extends APIServlet.APIRequestHandler{
         if (info != null) {
             response.put("accountOneName", info.getName());
         }
-        if (accountOne.getPublicKey() != null) {
-            response.put("accountOnePublicKey", Convert.toHexString(accountOne.getPublicKey()));
+        byte[] accountOnePublicKey = Account.getPublicKey(accountOne.getId());
+        if (accountOnePublicKey != null) {
+            response.put("accountOnePublicKey", Convert.toHexString(accountOnePublicKey));
         }
         
         response.put("accountTwoRS", Convert.rsAccount(accountTwo.getId()));
@@ -111,8 +112,9 @@ public class GetChatMessages extends APIServlet.APIRequestHandler{
         if (info != null) {
             response.put("accountTwoName", info.getName());
         }
-        if (accountOne.getPublicKey() != null) {
-          response.put("accountTwoPublicKey", Convert.toHexString(accountTwo.getPublicKey()));
+        byte[] accountTwoPublicKey = Account.getPublicKey(accountTwo.getId());
+        if (accountTwoPublicKey != null) {
+          response.put("accountTwoPublicKey", Convert.toHexString(accountTwoPublicKey));
         }
         
         response.put("messages", list);
